@@ -4,6 +4,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.Geometry;
+using Newtonsoft.Json;
 
 namespace AutoCAD_NET_4_8_Framework
 {
@@ -31,33 +32,53 @@ namespace AutoCAD_NET_4_8_Framework
             ed.WriteMessage("\nHello from AutoCAD .NET API!");
         }
 
-        [CommandMethod("DrawCircle")]
-        public void DrawCircle()
+        [CommandMethod("TestJson")]
+        public void TestJsonCAD()
+        {
+            try
+            {
+                var jsonObj = new
+                {
+                    Name = "AutoCAD Json Object",
+                    Success = true,
+                    Timestamp = DateTime.Now
+                };
+
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+                Editor ed = doc.Editor;
+                ed.WriteMessage(JsonConvert.SerializeObject(jsonObj));
+            }
+            catch (System.Exception ex)
+            {
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+                Editor ed = doc.Editor;
+                ed.WriteMessage($"\nError: {ex.Message}");
+            }
+        }
+
+        [CommandMethod("DrawLine")]
+        public void DrawLine()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Database db = doc.Database;
             Editor ed = doc.Editor;
 
-            PromptPointResult ppr = ed.GetPoint("\nSpecify center point: ");
-            if (ppr.Status != PromptStatus.OK) return;
-
-            PromptDoubleResult pdr = ed.GetDouble("\nSpecify radius: ");
-            if (pdr.Status != PromptStatus.OK) return;
-
-            using (Transaction tr = db.TransactionManager.StartTransaction())
+            using (Transaction tm = db.TransactionManager.StartTransaction())
             {
-                BlockTable bt = tr.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-                BlockTableRecord btr = tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
+                BlockTable bt = tm.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
 
-                Circle circle = new Circle(ppr.Value, Vector3d.ZAxis, pdr.Value);
+                BlockTableRecord btr = tm.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
 
-                btr.AppendEntity(circle);
-                tr.AddNewlyCreatedDBObject(circle, true);
+                Line line = new Line(new Point3d(0, 0, 0), new Point3d(100, 100, 0));
 
-                tr.Commit();
+                btr.AppendEntity(line);
+
+                tm.AddNewlyCreatedDBObject(line, true);
+
+                tm.Commit();
             }
 
-            ed.WriteMessage($"\nCircle created with radius {pdr.Value}");
+            ed.WriteMessage("\nLine drawn from (0,0,0) to (100,100,0).");
         }
     }
 }
