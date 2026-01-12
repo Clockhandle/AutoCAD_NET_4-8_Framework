@@ -1,0 +1,21 @@
+Print stuff to autocad:
+
+(Document doc = Application.DocumentManager.MdiActiveDocument;
+Editor ed = doc.Editor;) => Necessary tools for printing.
+
+Application.ShowAlertDialog("Stop! You forgot to select a layer."); => Alert box on cad.
+
+MessageBox.Show("Export Complete", "My Plugin Title", MessageBoxButtons.OK, MessageBoxIcon.Information); => Same thing with above, use winforms instead.
+
+
+Some handy methods
+
+GetObject(Object id, OpenMode mode) => Get most of the blocks in autocad. Think of this like how everything in Linux is a file, you access them with file id. We need Object id to get something, basically getting the reference to said object / block to work with it
+
+BlockTable => Hold BlockTableRecords. Just that really. Think of it as a symbol Table to section stuff or for organization
+BlockTableRecords => Holds entities, we probably only need to pay attention to two: Paper Space for texts and uis, and Model Space for actual objects in 3d environment, used in drawing
+
+
+Transactions:
+
+using (Transaction tm = db.TransactionManager.StartTransaction()) { ... } => Wrapper for reading / writing onto the database. Preferable over Open and Close since we need to do multiple read / write operations and transaction help turning multiple reads / writes into one. Remember to call tm.Commit() to commit to the write commands else your write wont save when run. Read operations probably wont need it.
