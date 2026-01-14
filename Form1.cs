@@ -1,56 +1,62 @@
-﻿using System;
-using System.IO; 
-using System.Collections.Generic;
-using System.Linq;
-using System.Windows.Forms;
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.IO; 
+using System.Linq;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-
 namespace AutoCAD_NET_4_8_Framework
 {
     public partial class Form1 : Form
     {
-        private List<ObjectId> _selectedObjectIds = new List<ObjectId>();
-
+        private List<ObjectId> _selectedObjectIds_A = new List<ObjectId>();
+        private List<ObjectId> _selectedObjectIds_B = new List<ObjectId>();
+        private List<ObjectId> _selectedObjectIds_C = new List<ObjectId>();
         public Form1()
         {
             InitializeComponent();
         }
 
-        private void OnSelectObject_Click(object sender, EventArgs e)
+        private void OnSelectObject_A(object sender, EventArgs e)
         {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            Editor ed = doc.Editor;
-
-            this.Hide();
-
-            PromptSelectionOptions opt = new PromptSelectionOptions();
-            opt.MessageForAdding = "\nSelect objects (drag to window select): ";
-
-            PromptSelectionResult res = ed.GetSelection(opt);
-
-            this.Show();
-
-            if (res.Status == PromptStatus.OK)
+            List<ObjectId> res = PromptUserForSelection("Select objects for Group A: ");
+            if (res.Count > 0)
             {
-                SelectionSet ss = res.Value;
-                _selectedObjectIds = new List<ObjectId>(ss.GetObjectIds());
-
-                MessageBox.Show($"Selected {_selectedObjectIds.Count} objects.");
-            }
-            else
-            {
-                _selectedObjectIds.Clear();
-                MessageBox.Show("Selection cancelled.");
+                _selectedObjectIds_A = res;
+                MessageBox.Show($"Selected {_selectedObjectIds_A.Count} objects for Group A.");
             }
         }
-
-        private void OnConfirmSelectedObject_Click(object sender, EventArgs e)
+        private void OnSelectObject_B(object sender, EventArgs e) 
         {
-            if (_selectedObjectIds.Count == 0)
+            List<ObjectId> res = PromptUserForSelection("Select objects for Group B: ");
+            if (res.Count > 0)
+            {
+                _selectedObjectIds_B = res;
+                MessageBox.Show($"Selected {_selectedObjectIds_B.Count} objects for Group B.");
+            }
+        }
+        private void OnSelectObject_C(object sender, EventArgs e) 
+        {
+            List<ObjectId> res = PromptUserForSelection("Select objects for Group C: ");
+            if (res.Count > 0)
+            {
+                _selectedObjectIds_C = res;
+                MessageBox.Show($"Selected {_selectedObjectIds_C.Count} objects for Group C.");
+            }
+        }
+        private void OnClose_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void OnExportToJSON_Click(object sender, EventArgs e)
+        {
+            if (_selectedObjectIds_A.Count == 0 && _selectedObjectIds_B.Count == 0 && _selectedObjectIds_C.Count == 0)
             {
                 MessageBox.Show("Please select objects first.");
                 return;
@@ -59,152 +65,190 @@ namespace AutoCAD_NET_4_8_Framework
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Database db = doc.Database;
 
+            List<CADObjectData> cadObjectsData_A = new List<CADObjectData>();
+            List<CADObjectData> cadObjectsData_B = new List<CADObjectData>();
+            List<CADObjectData> cadObjectsData_C = new List<CADObjectData>();
             using (DocumentLock docLock = doc.LockDocument())
             {
                 using (Transaction tr = db.TransactionManager.StartTransaction())
                 {
-                    foreach (ObjectId id in _selectedObjectIds)
+                    List<CADObjectData> ExtractDataFromLists(List<ObjectId> ids, string groupName)
                     {
-                        if (id.IsErased) continue;
-
-                        Entity ent = tr.GetObject(id, OpenMode.ForWrite) as Entity;
-
-                        if (ent != null)
+                        List<CADObjectData> tempList = new List<CADObjectData>();
+                        foreach (ObjectId id in ids)
                         {
-                            // Apply changes to ALL selected objects
-                            ent.ColorIndex = 1; // Red
-                            ent.TransformBy(Matrix3d.Displacement(new Vector3d(0, 0, 10)));
-                        }
-                    }
+                            if (id.IsErased) continue;
+                            Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                            if (ent != null)
+                            {
+                                CADObjectData cadData = new CADObjectData
+                                {
+                                    GroupName = groupName,
+                                    Handle = ent.Handle.ToString(),
+                                    ObjectType = ent.GetType().Name,
+                                    Layer = ent.Layer
+                                };
+                                if (ent is Line line)
+                                {
+                                    cadData.StartPoint = new double[] { line.StartPoint.X, line.StartPoint.Y, line.StartPoint.Z };
+                                    cadData.EndPoint = new double[] { line.EndPoint.X, line.EndPoint.Y, line.EndPoint.Z };
+                                }
+                                else if (ent is Circle circle)
+                                {
+                                    cadData.CenterPoint = new double[] { circle.Center.X, circle.Center.Y, circle.Center.Z };
+                                    cadData.Radius = circle.Radius;
+                                }
+                                if (ent is Arc arc)
+                                {
+                                    cadData.CenterPoint = new double[] { arc.Center.X, arc.Center.Y, arc.Center.Z };
+                                    cadData.Radius = arc.Radius;
 
+                                    // AutoCAD angles are in Radians (0 to 2PI)
+                                    cadData.StartAngle = arc.StartAngle;
+                                    cadData.EndAngle = arc.EndAngle;
+                                    cadData.TotalAngle = arc.TotalAngle;
+                                }
+                                else if (ent is Polyline polyline)
+                                {
+                                    cadData.Vertices = new List<double[]>();
+                                    cadData.Bulges = new List<double>();
+
+                                    int vertCount = polyline.NumberOfVertices;
+                                    for (int i = 0; i < vertCount; i++)
+                                    {
+                                        Point3d pt = polyline.GetPoint3dAt(i);
+                                        cadData.Vertices.Add(new double[] { pt.X, pt.Y, pt.Z });
+
+                                        cadData.Bulges.Add(polyline.GetBulgeAt(i));
+                                    }
+                                    cadData.IsClosed = polyline.Closed;
+                                }
+                                else if (ent is Spline spline)
+                                {
+                                    if (spline.NumControlPoints > 0)
+                                    {
+                                        cadData.ControlPoints = new List<double[]>();
+                                        for (int i = 0; i < spline.NumControlPoints; i++)
+                                        {
+                                            Point3d cp = spline.GetControlPointAt(i);
+                                            cadData.ControlPoints.Add(new double[] { cp.X, cp.Y, cp.Z });
+                                        }
+                                    }
+
+                                    if (spline.NumFitPoints > 0)
+                                    {
+                                        cadData.FitPoints = new List<double[]>();
+                                        for (int i = 0; i < spline.NumFitPoints; i++)
+                                        {
+                                            Point3d fp = spline.GetFitPointAt(i);
+                                            cadData.FitPoints.Add(new double[] { fp.X, fp.Y, fp.Z });
+                                        }
+                                    }
+
+                                    cadData.Degree = spline.Degree;
+                                    cadData.IsRational = spline.IsRational;
+                                    cadData.IsClosed = spline.Closed;
+                                }
+                                else if (ent is Ellipse ellipse)
+                                {
+                                    cadData.CenterPoint = new double[] { ellipse.Center.X, ellipse.Center.Y, ellipse.Center.Z };
+
+                                    cadData.MajorAxis = new double[] { ellipse.MajorAxis.X, ellipse.MajorAxis.Y, ellipse.MajorAxis.Z };
+                                    cadData.RadiusRatio = ellipse.RadiusRatio;
+
+                                    cadData.StartAngle = ellipse.StartAngle;
+                                    cadData.EndAngle = ellipse.EndAngle;
+                                }
+
+                                tempList.Add(cadData);
+                            }
+                        }
+                        return tempList;
+                    }
+                    cadObjectsData_A = ExtractDataFromLists(_selectedObjectIds_A, "A");
+                    cadObjectsData_B = ExtractDataFromLists(_selectedObjectIds_B, "B");
+                    cadObjectsData_C = ExtractDataFromLists(_selectedObjectIds_C, "C");
                     tr.Commit();
                 }
             }
 
-            // Refresh only once at the end
-            doc.Editor.Regen();
-
-            _selectedObjectIds.Clear();
-            MessageBox.Show("Processing Complete.");
-        }
-        private void OnExportToCSV_Click(object sender, EventArgs e)
-        {
-            if (_selectedObjectIds.Count == 0)
+            //Serialize to JSON
+            SaveFileDialog saveFileDialog = new SaveFileDialog
             {
-                MessageBox.Show("No objects selected.");
-                return;
-            }
+                Filter = "JSON files (*.json)|*.json",
+                Title = "Save CAD Object Data as JSON",
+                FileName = "CADObjectData.json"
+            };
 
-            SaveFileDialog saveDialog = new SaveFileDialog();
-            saveDialog.Filter = "CSV File|*.csv";
-            saveDialog.FileName = "Detailed_Export_" + DateTime.Now.ToString("yyyyMMdd");
-            if (saveDialog.ShowDialog() != DialogResult.OK) return;
-
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            Database db = doc.Database;
-
-            try
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
-                using (StreamWriter sw = new StreamWriter(saveDialog.FileName))
+                string fullPath = saveFileDialog.FileName;
+                string directory = Path.GetDirectoryName(fullPath);
+                string fileNameNoExt = Path.GetFileNameWithoutExtension(fullPath);
+
+                var jsonSettings = new JsonSerializerSettings
                 {
-                    // 1. Write Header
-                    sw.WriteLine("Handle,Layer,Type,BlockName,Attribute_Data,Vertex_Index,X,Y,Z,Bulge,SegmentType");
+                    Formatting = Formatting.Indented,
+                    NullValueHandling = NullValueHandling.Ignore
+                };
 
-                    using (Transaction tr = db.TransactionManager.StartTransaction())
-                    {
-                        foreach (ObjectId id in _selectedObjectIds)
-                        {
-                            if (id.IsErased) continue;
-                            Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                            if (ent == null) continue;
+                int filesCreated = 0;
 
-                            string handle = ent.Handle.ToString();
-                            string layer = ent.Layer;
-                            string type = ent.GetType().Name;
-
-                            // --- CASE 1: POLYLINE (Detailed Geometry) ---
-                            if (ent is Polyline pl)
-                            {
-                                int vertices = pl.NumberOfVertices;
-                                for (int i = 0; i < vertices; i++)
-                                {
-                                    // Geometry details
-                                    Point3d pt = pl.GetPoint3dAt(i);
-                                    double bulge = pl.GetBulgeAt(i);
-
-                                    // Determine segment type (Line vs Arc) based on bulge
-                                    string segType = (bulge != 0) ? "ARC" : "LINE";
-
-                                    // Format: Handle, Layer, Type, BlockName, Attrs, V_Index, X, Y, Z, Bulge, SegType
-                                    sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6:F4},{7:F4},{8:F4},{9:F4},{10}",
-                                        handle, layer, "Polyline", "N/A", "N/A",
-                                        i, pt.X, pt.Y, pt.Z, bulge, segType));
-                                }
-                            }
-                            // --- CASE 2: BLOCK REFERENCE (Attributes/Tags) ---
-                            else if (ent is BlockReference blk)
-                            {
-                                string blockName = blk.Name;
-                                if (blk.IsDynamicBlock)
-                                {
-                                    var btr = tr.GetObject(blk.DynamicBlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                                    blockName = btr.Name;
-                                }
-
-                                // Collect Attributes (Critical for Databases!)
-                                string attrData = "";
-                                if (blk.AttributeCollection.Count > 0)
-                                {
-                                    foreach (ObjectId attId in blk.AttributeCollection)
-                                    {
-                                        AttributeReference attRef = tr.GetObject(attId, OpenMode.ForRead) as AttributeReference;
-                                        if (attRef != null)
-                                        {
-                                            // Format: TAG=VALUE | TAG2=VALUE2
-                                            attrData += $"{attRef.Tag}={attRef.TextString}|";
-                                        }
-                                    }
-                                }
-
-                                // Write generic row for the block position
-                                sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6:F4},{7:F4},{8:F4},{9},{10}",
-                                    handle, layer, "Block", blockName, attrData,
-                                    0, blk.Position.X, blk.Position.Y, blk.Position.Z, 0, "N/A"));
-                            }
-                            // --- CASE 3: OTHERS (Lines, Circles) ---
-                            else
-                            {
-                                // Use Bounds (Extents) for generic location
-                                double x = 0, y = 0, z = 0;
-                                if (ent.Bounds.HasValue)
-                                {
-                                    x = ent.Bounds.Value.MinPoint.X;
-                                    y = ent.Bounds.Value.MinPoint.Y;
-                                    z = ent.Bounds.Value.MinPoint.Z;
-                                }
-
-                                sw.WriteLine(string.Format("{0},{1},{2},{3},{4},{5},{6:F4},{7:F4},{8:F4},{9},{10}",
-                                    handle, layer, type, "N/A", "N/A",
-                                    0, x, y, z, 0, "N/A"));
-                            }
-                        }
-                        tr.Commit();
-                    }
+                if (cadObjectsData_A.Count > 0)
+                {
+                    string pathA = Path.Combine(directory, $"{fileNameNoExt}_GroupA.json");
+                    string jsonA = JsonConvert.SerializeObject(cadObjectsData_A, jsonSettings);
+                    File.WriteAllText(pathA, jsonA);
+                    filesCreated++;
                 }
-                MessageBox.Show("Detailed Export Complete!");
-                System.Diagnostics.Process.Start("explorer.exe", "/select," + saveDialog.FileName);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error: " + ex.Message);
+
+                if (cadObjectsData_B.Count > 0)
+                {
+                    string pathB = Path.Combine(directory, $"{fileNameNoExt}_GroupB.json");
+                    string jsonB = JsonConvert.SerializeObject(cadObjectsData_B, jsonSettings);
+                    File.WriteAllText(pathB, jsonB);
+                    filesCreated++;
+                }
+
+                if (cadObjectsData_C.Count > 0)
+                {
+                    string pathC = Path.Combine(directory, $"{fileNameNoExt}_GroupC.json");
+                    string jsonC = JsonConvert.SerializeObject(cadObjectsData_C, jsonSettings);
+                    File.WriteAllText(pathC, jsonC);
+                    filesCreated++;
+                }
+
+                MessageBox.Show($"Export Complete!\nGenerated {filesCreated} separate files in:\n{directory}");
             }
         }
-
 
         //Helper functions
         private void Form1_Load(object sender, EventArgs e)
         {
             this.TopMost = true;
         }
+
+        private List<ObjectId> PromptUserForSelection(string promptMessage)
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            this.Hide();
+
+            PromptSelectionOptions opt = new PromptSelectionOptions();
+            opt.MessageForAdding = promptMessage;
+
+            PromptSelectionResult res = ed.GetSelection(opt);
+
+            this.Show();
+
+            if (res.Status == PromptStatus.OK)
+            {
+                return new List<ObjectId>(res.Value.GetObjectIds());
+            }
+
+            return new List<ObjectId>();
+        }
+
     }
 }
