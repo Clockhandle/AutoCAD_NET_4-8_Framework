@@ -34,6 +34,7 @@
             this.OnExportToCSV = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
             this.button2 = new System.Windows.Forms.Button();
+            this.button3 = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // OnSelectObject
@@ -86,6 +87,16 @@
             this.button2.UseVisualStyleBackColor = true;
             this.button2.Click += new System.EventHandler(this.OnSelectObject_C);
             // 
+            // button3
+            // 
+            this.button3.Location = new System.Drawing.Point(593, 387);
+            this.button3.Name = "button3";
+            this.button3.Size = new System.Drawing.Size(187, 45);
+            this.button3.TabIndex = 5;
+            this.button3.Text = "SendToServer";
+            this.button3.UseVisualStyleBackColor = true;
+            this.button3.Click += new System.EventHandler(this.OnSendToServer_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -93,6 +104,7 @@
             this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.ClientSize = new System.Drawing.Size(966, 486);
+            this.Controls.Add(this.button3);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.OnExportToCSV);
@@ -112,5 +124,6 @@
         private System.Windows.Forms.Button OnExportToCSV;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button button2;
+        private System.Windows.Forms.Button button3;
     }
 }
