@@ -115,100 +115,94 @@ namespace AutoCAD_NET_4_8_Framework
 
         private void OnExportToJSON_Click(object sender, EventArgs e)
         {
-            if (_selectedObjectIds_A.Count == 0 && _selectedObjectIds_B.Count == 0 && _selectedObjectIds_C.Count == 0)
+            if (_seamGroups.Count == 0 || _seamGroups.All(k => k.Value.Count == 0))
             {
-                MessageBox.Show("Please select objects first.");
+                MessageBox.Show("Chưa có dữ liệu nào được lưu trong danh sách vỉa.");
                 return;
             }
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
 
-            // Create empty lists
-            List<CADObjectData> cadObjectsData_A = new List<CADObjectData>();
-            List<CADObjectData> cadObjectsData_B = new List<CADObjectData>();
-            List<CADObjectData> cadObjectsData_C = new List<CADObjectData>();
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                Title = "Save CAD Object Data",
+                FileName = "MiningData.json"
+            };
+
+            if (saveFileDialog.ShowDialog() != DialogResult.OK) return;
+
+            string fullPath = saveFileDialog.FileName;
+            string directory = Path.GetDirectoryName(fullPath);
+            string baseName = Path.GetFileNameWithoutExtension(fullPath);
+
+            var jsonSettings = new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                NullValueHandling = NullValueHandling.Ignore
+            };
+
+            int filesCreated = 0;
 
             using (DocumentLock docLock = doc.LockDocument())
             using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
             {
-                // LOOK HOW CLEAN THIS IS NOW:
-                // We use the same 'GetCadData' helper as the Upload button!
-                cadObjectsData_A = GetCadData(tr, _selectedObjectIds_A, "Group_A");
-                cadObjectsData_B = GetCadData(tr, _selectedObjectIds_B, "Group_B");
-                cadObjectsData_C = GetCadData(tr, _selectedObjectIds_C, "Group_C");
+                foreach (var kvp in _seamGroups)
+                {
+                    string seamName = kvp.Key;            
+                    HashSet<ObjectId> ids = kvp.Value;    
 
+                    if (ids.Count == 0) continue; 
+                    List<CADObjectData> seamData = GetCadData(tr, ids.ToList(), seamName);
+
+                    if (seamData.Count > 0)
+                    {
+                        string safeSeamName = string.Join("_", seamName.Split(Path.GetInvalidFileNameChars()));
+                        string filePath = Path.Combine(directory, $"{baseName}_{safeSeamName}.json");
+
+                        string json = JsonConvert.SerializeObject(seamData, jsonSettings);
+                        File.WriteAllText(filePath, json);
+                        filesCreated++;
+                    }
+                }
                 tr.Commit();
             }
 
-            //Serialize to JSON
-            SaveFileDialog saveFileDialog = new SaveFileDialog
-            {
-                Filter = "JSON files (*.json)|*.json",
-                Title = "Save CAD Object Data as JSON",
-                FileName = "CADObjectData.json"
-            };
-
-            if (saveFileDialog.ShowDialog() == DialogResult.OK)
-            {
-                string fullPath = saveFileDialog.FileName;
-                string directory = Path.GetDirectoryName(fullPath);
-                string fileNameNoExt = Path.GetFileNameWithoutExtension(fullPath);
-
-                var jsonSettings = new JsonSerializerSettings
-                {
-                    Formatting = Formatting.Indented,
-                    NullValueHandling = NullValueHandling.Ignore
-                };
-
-                int filesCreated = 0;
-
-                if (cadObjectsData_A.Count > 0)
-                {
-                    string pathA = Path.Combine(directory, $"{fileNameNoExt}_GroupA.json");
-                    string jsonA = JsonConvert.SerializeObject(cadObjectsData_A, jsonSettings);
-                    File.WriteAllText(pathA, jsonA);
-                    filesCreated++;
-                }
-
-                if (cadObjectsData_B.Count > 0)
-                {
-                    string pathB = Path.Combine(directory, $"{fileNameNoExt}_GroupB.json");
-                    string jsonB = JsonConvert.SerializeObject(cadObjectsData_B, jsonSettings);
-                    File.WriteAllText(pathB, jsonB);
-                    filesCreated++;
-                }
-
-                if (cadObjectsData_C.Count > 0)
-                {
-                    string pathC = Path.Combine(directory, $"{fileNameNoExt}_GroupC.json");
-                    string jsonC = JsonConvert.SerializeObject(cadObjectsData_C, jsonSettings);
-                    File.WriteAllText(pathC, jsonC);
-                    filesCreated++;
-                }
-
-                MessageBox.Show($"Export Complete!\nGenerated {filesCreated} separate files in:\n{directory}");
-            }
+            MessageBox.Show($"Export Complete!\nGenerated {filesCreated} separate files in:\n{directory}");
         }
 
         private async void OnSendToServer_Click(object sender, EventArgs e)
         {
-            if (_selectedObjectIds_A.Count == 0 && _selectedObjectIds_B.Count == 0 && _selectedObjectIds_C.Count == 0)
+            if (_seamGroups.Count == 0 || _seamGroups.All(k => k.Value.Count == 0))
             {
-                MessageBox.Show("Please select objects first.");
+                MessageBox.Show("Chưa có dữ liệu nào để gửi. Hãy thêm vỉa và lưu đối tượng trước.");
+                return;
+            }
+
+            string ipInput = txtServerUrl.Text.Trim();
+            if (string.IsNullOrEmpty(ipInput))
+            {
+                MessageBox.Show("Please enter a Server IP address.");
                 return;
             }
 
             List<CADObjectData> masterUploadList = new List<CADObjectData>();
-
             Document doc = Application.DocumentManager.MdiActiveDocument;
 
+            // 2. Extract Data from all Seams
             using (DocumentLock docLock = doc.LockDocument())
             using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
             {
-                masterUploadList.AddRange(GetCadData(tr, _selectedObjectIds_A, "Group_A"));
-                masterUploadList.AddRange(GetCadData(tr, _selectedObjectIds_B, "Group_B"));
-                masterUploadList.AddRange(GetCadData(tr, _selectedObjectIds_C, "Group_C"));
+                foreach (var kvp in _seamGroups)
+                {
+                    string seamName = kvp.Key;            
+                    List<ObjectId> ids = kvp.Value.ToList(); 
 
+                    if (ids.Count == 0) continue;
+
+                    List<CADObjectData> seamData = GetCadData(tr, ids, seamName);
+                    masterUploadList.AddRange(seamData);
+                }
                 tr.Commit();
             }
 
@@ -217,12 +211,21 @@ namespace AutoCAD_NET_4_8_Framework
                 System.Windows.Forms.Button btn = sender as System.Windows.Forms.Button;
                 string originalText = btn.Text;
                 btn.Text = "Uploading...";
-                btn.Enabled = false; // Prevent double-clicking
+                btn.Enabled = false;
 
-                await UploadJsonDataAsync(masterUploadList);
-
-                btn.Text = originalText;
-                btn.Enabled = true;
+                try
+                {
+                    await UploadJsonDataAsync(masterUploadList, ipInput);
+                }
+                finally
+                {
+                    btn.Text = originalText;
+                    btn.Enabled = true;
+                }
+            }
+            else
+            {
+                MessageBox.Show("Không tìm thấy đối tượng hợp lệ nào để upload (có thể chúng đã bị xóa khỏi bản vẽ).");
             }
         }
 
@@ -254,9 +257,10 @@ namespace AutoCAD_NET_4_8_Framework
             return new List<ObjectId>();
         }
 
-        private async Task UploadJsonDataAsync(List<CADObjectData> payload)
+        private async Task UploadJsonDataAsync(List<CADObjectData> payload, string serverUrl)
         {
-            string url = "http://10.60.161.35:3000/api/cad-upload";
+            string cleanBaseUrl = serverUrl.TrimEnd('/');
+            string fullUrl = $"{cleanBaseUrl}/api/cad-upload";
 
             try
             {
@@ -264,7 +268,7 @@ namespace AutoCAD_NET_4_8_Framework
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 // Send POST request
-                HttpResponseMessage response = await _client.PostAsync(url, content);
+                HttpResponseMessage response = await _client.PostAsync(fullUrl, content);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -278,7 +282,7 @@ namespace AutoCAD_NET_4_8_Framework
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Upload Failed: {ex.Message}");
+                MessageBox.Show($"Upload Failed: {ex.Message}\nCheck your IP address.");
             }
         }
 

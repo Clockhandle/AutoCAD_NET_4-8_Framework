@@ -37,12 +37,16 @@
             this.label1 = new System.Windows.Forms.Label();
             this.OnAddSeams = new System.Windows.Forms.Button();
             this.ListOfSeams = new System.Windows.Forms.ComboBox();
+            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.label2 = new System.Windows.Forms.Label();
+            this.txtServerUrl = new System.Windows.Forms.TextBox();
             this.Seam.SuspendLayout();
+            this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
             // OnClose
             // 
-            this.OnClose.Location = new System.Drawing.Point(636, 387);
+            this.OnClose.Location = new System.Drawing.Point(722, 369);
             this.OnClose.Name = "OnClose";
             this.OnClose.Size = new System.Drawing.Size(187, 45);
             this.OnClose.TabIndex = 1;
@@ -52,7 +56,7 @@
             // 
             // OnExportToCSV
             // 
-            this.OnExportToCSV.Location = new System.Drawing.Point(636, 284);
+            this.OnExportToCSV.Location = new System.Drawing.Point(722, 305);
             this.OnExportToCSV.Name = "OnExportToCSV";
             this.OnExportToCSV.Size = new System.Drawing.Size(186, 45);
             this.OnExportToCSV.TabIndex = 2;
@@ -62,9 +66,9 @@
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(636, 174);
+            this.button3.Location = new System.Drawing.Point(92, 51);
             this.button3.Name = "button3";
-            this.button3.Size = new System.Drawing.Size(187, 45);
+            this.button3.Size = new System.Drawing.Size(86, 25);
             this.button3.TabIndex = 5;
             this.button3.Text = "SendToServer";
             this.button3.UseVisualStyleBackColor = true;
@@ -130,14 +134,42 @@
             this.ListOfSeams.Size = new System.Drawing.Size(121, 21);
             this.ListOfSeams.TabIndex = 1;
             // 
+            // groupBox1
+            // 
+            this.groupBox1.Controls.Add(this.txtServerUrl);
+            this.groupBox1.Controls.Add(this.button3);
+            this.groupBox1.Controls.Add(this.label2);
+            this.groupBox1.Location = new System.Drawing.Point(713, 190);
+            this.groupBox1.Name = "groupBox1";
+            this.groupBox1.Size = new System.Drawing.Size(192, 86);
+            this.groupBox1.TabIndex = 7;
+            this.groupBox1.TabStop = false;
+            this.groupBox1.Text = "SendToServer";
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(6, 28);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(26, 13);
+            this.label2.TabIndex = 6;
+            this.label2.Text = "IP : ";
+            // 
+            // txtServerUrl
+            // 
+            this.txtServerUrl.Location = new System.Drawing.Point(38, 25);
+            this.txtServerUrl.Name = "txtServerUrl";
+            this.txtServerUrl.Size = new System.Drawing.Size(140, 20);
+            this.txtServerUrl.TabIndex = 7;
+            // 
             // UI_Events
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.ClientSize = new System.Drawing.Size(966, 486);
+            this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.Seam);
-            this.Controls.Add(this.button3);
             this.Controls.Add(this.OnExportToCSV);
             this.Controls.Add(this.OnClose);
             this.Name = "UI_Events";
@@ -145,6 +177,8 @@
             this.Load += new System.EventHandler(this.UI_Events_Load);
             this.Seam.ResumeLayout(false);
             this.Seam.PerformLayout();
+            this.groupBox1.ResumeLayout(false);
+            this.groupBox1.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -159,5 +193,8 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button OnStoreSeams;
         private System.Windows.Forms.Label SelectedObjectsLabel;
+        private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.TextBox txtServerUrl;
     }
 }
