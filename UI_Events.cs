@@ -16,44 +16,98 @@ using System.Threading.Tasks;
 
 namespace AutoCAD_NET_4_8_Framework
 {
-    public partial class Form1 : Form
+    public partial class UI_Events : Form
     {
         private List<ObjectId> _selectedObjectIds_A = new List<ObjectId>();
         private List<ObjectId> _selectedObjectIds_B = new List<ObjectId>();
         private List<ObjectId> _selectedObjectIds_C = new List<ObjectId>();
+        private Dictionary<string, HashSet<ObjectId>> _seamGroups = new Dictionary<string, HashSet<ObjectId>>();
         private static readonly HttpClient _client = new HttpClient();
-        public Form1()
+        public UI_Events()
         {
             InitializeComponent();
         }
 
-        private void OnSelectObject_A(object sender, EventArgs e)
+        private void OnAddSeams_Click(object sender, EventArgs e)
         {
-            List<ObjectId> res = PromptUserForSelection("Select objects for Group A: ");
-            if (res.Count > 0)
+            string name = ListOfSeams.Text.Trim();
+
+            if(string.IsNullOrEmpty(name))
             {
-                _selectedObjectIds_A = res;
-                MessageBox.Show($"Selected {_selectedObjectIds_A.Count} objects for Group A.");
+                MessageBox.Show("Hãy điền tên vỉa để thêm vào danh sách.");
+                return;
+            }
+            if(_seamGroups.ContainsKey(name))
+            {
+                MessageBox.Show("Vỉa cùng tên đã tồn tại trong danh sách. Hãy chọn tên khác.");
+                return;
+            }
+
+            _seamGroups.Add(name, new HashSet<ObjectId>());
+
+            ListOfSeams.Items.Add(name);
+            ListOfSeams.SelectedItem = name;
+
+            MessageBox.Show($"Đã thêm vỉa '{name}' vào danh sách.");
+        }
+
+        private void OnStoreSeams_Click(object sender, EventArgs e)
+        {
+            string currentSeam = ListOfSeams.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(currentSeam))
+            {
+                MessageBox.Show("Hãy chọn vỉa từ danh sách để lưu các đối tượng đã chọn.");
+                return;
+            }
+
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            PromptSelectionResult res = ed.SelectImplied();
+
+            if (res.Status != PromptStatus.OK)
+            {
+                this.Hide();
+
+                PromptSelectionOptions opt = new PromptSelectionOptions();
+                opt.MessageForAdding = $"\nChọn đối tượng cho vỉa '{currentSeam}': "; 
+                res = ed.GetSelection(opt);
+
+                this.Show();
+            }
+
+
+            if (res.Status == PromptStatus.OK)
+            {
+                ObjectId[] ids = res.Value.GetObjectIds();
+
+                if (!_seamGroups.ContainsKey(currentSeam))
+                {
+                    _seamGroups.Add(currentSeam, new HashSet<ObjectId>());
+                }
+
+                HashSet<ObjectId> bucket = _seamGroups[currentSeam];
+
+                int before = bucket.Count;
+                foreach (ObjectId id in ids)
+                {
+                    bucket.Add(id);
+                }
+                int added = bucket.Count - before;
+
+                if (added > 0)
+                {
+                    MessageBox.Show($"Đã lưu {added} đối tượng mới vào '{currentSeam}'.\nTổng cộng: {bucket.Count}");
+                    UpdateSeamInfoLabel();
+                }
+                else
+                {
+                    MessageBox.Show($"Các đối tượng này đã tồn tại trong '{currentSeam}'. Không có gì mới được thêm.");
+                }
             }
         }
-        private void OnSelectObject_B(object sender, EventArgs e) 
-        {
-            List<ObjectId> res = PromptUserForSelection("Select objects for Group B: ");
-            if (res.Count > 0)
-            {
-                _selectedObjectIds_B = res;
-                MessageBox.Show($"Selected {_selectedObjectIds_B.Count} objects for Group B.");
-            }
-        }
-        private void OnSelectObject_C(object sender, EventArgs e) 
-        {
-            List<ObjectId> res = PromptUserForSelection("Select objects for Group C: ");
-            if (res.Count > 0)
-            {
-                _selectedObjectIds_C = res;
-                MessageBox.Show($"Selected {_selectedObjectIds_C.Count} objects for Group C.");
-            }
-        }
+
         private void OnClose_Click(object sender, EventArgs e)
         {
             this.Close();
@@ -173,7 +227,7 @@ namespace AutoCAD_NET_4_8_Framework
         }
 
         //Helper functions
-        private void Form1_Load(object sender, EventArgs e)
+        private void UI_Events_Load(object sender, EventArgs e)
         {
             this.TopMost = true;
         }
@@ -306,5 +360,18 @@ namespace AutoCAD_NET_4_8_Framework
             return tempList;
         }
 
+        private void UpdateSeamInfoLabel()
+        {
+            string currentSeam = ListOfSeams.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(currentSeam) || !_seamGroups.ContainsKey(currentSeam))
+            {
+                SelectedObjectsLabel.Text = "Số đối tượng: 0";
+                return;
+            }
+
+            int count = _seamGroups[currentSeam].Count;
+            SelectedObjectsLabel.Text = $"Số đối tượng: {count}";
+        }
     }
 }

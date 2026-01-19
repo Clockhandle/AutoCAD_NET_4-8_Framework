@@ -10,14 +10,14 @@ namespace AutoCAD_NET_4_8_Framework
 {
     public class Class1
     {
-        private static Form1 _myForm;
+        private static UI_Events _myForm;
 
         [CommandMethod("OpenObjectSelectionUI")]
         public void OpenObjectSelectionUI()
         {
             if (_myForm == null || _myForm.IsDisposed)
             {
-                _myForm = new Form1();
+                _myForm = new UI_Events();
             }
 
             // Passing 'null' as the owner creates a floating window
