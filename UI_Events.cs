@@ -7,107 +7,71 @@ using System;
 using System.Collections.Generic;
 using System.IO; 
 using System.Linq;
-using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+
+using WinCombo = System.Windows.Forms.ComboBox;
 
 namespace AutoCAD_NET_4_8_Framework
 {
     public partial class UI_Events : Form
     {
-        private List<ObjectId> _selectedObjectIds_A = new List<ObjectId>();
-        private List<ObjectId> _selectedObjectIds_B = new List<ObjectId>();
-        private List<ObjectId> _selectedObjectIds_C = new List<ObjectId>();
-        private Dictionary<string, HashSet<ObjectId>> _seamGroups = new Dictionary<string, HashSet<ObjectId>>();
+        private Dictionary<string, HashSet<ObjectId>> _seamGroups = new Dictionary<string, HashSet<ObjectId>>(); // Vỉa
+        private Dictionary<string, HashSet<ObjectId>> _roofGroups = new Dictionary<string, HashSet<ObjectId>>(); // Vách
+        private Dictionary<string, HashSet<ObjectId>> _floorGroups = new Dictionary<string, HashSet<ObjectId>>(); // Trụ
+        private Dictionary<string, HashSet<ObjectId>> _faultGroups = new Dictionary<string, HashSet<ObjectId>>(); // Đứt gãy
         private static readonly HttpClient _client = new HttpClient();
         public UI_Events()
         {
             InitializeComponent();
         }
 
+        //------ Adding Events ------
         private void OnAddSeams_Click(object sender, EventArgs e)
         {
-            string name = ListOfSeams.Text.Trim();
+            ChooseEntities(ListOfSeams, _seamGroups);
 
-            if(string.IsNullOrEmpty(name))
-            {
-                MessageBox.Show("Hãy điền tên vỉa để thêm vào danh sách.");
-                return;
-            }
-            if(_seamGroups.ContainsKey(name))
-            {
-                MessageBox.Show("Vỉa cùng tên đã tồn tại trong danh sách. Hãy chọn tên khác.");
-                return;
-            }
-
-            _seamGroups.Add(name, new HashSet<ObjectId>());
-
-            ListOfSeams.Items.Add(name);
-            ListOfSeams.SelectedItem = name;
-
-            MessageBox.Show($"Đã thêm vỉa '{name}' vào danh sách.");
+        }
+        private void OnAddRoofs_Click(object sender, EventArgs e)
+        {
+            ChooseEntities(ListOfRoofs, _roofGroups);
         }
 
+
+        private void OnAddFloors_Click(object sender, EventArgs e)
+        {
+            ChooseEntities(ListOfFloors, _floorGroups);
+        }
+
+        private void OnAddFaults_Click(object sender, EventArgs e)
+        {
+            ChooseEntities(ListOfFaults, _faultGroups);
+        }
+        //---------------------------
+
+        //------ Storing Events ------
         private void OnStoreSeams_Click(object sender, EventArgs e)
         {
-            string currentSeam = ListOfSeams.SelectedItem as string;
-
-            if (string.IsNullOrEmpty(currentSeam))
-            {
-                MessageBox.Show("Hãy chọn vỉa từ danh sách để lưu các đối tượng đã chọn.");
-                return;
-            }
-
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            Editor ed = doc.Editor;
-
-            PromptSelectionResult res = ed.SelectImplied();
-
-            if (res.Status != PromptStatus.OK)
-            {
-                this.Hide();
-
-                PromptSelectionOptions opt = new PromptSelectionOptions();
-                opt.MessageForAdding = $"\nChọn đối tượng cho vỉa '{currentSeam}': "; 
-                res = ed.GetSelection(opt);
-
-                this.Show();
-            }
-
-
-            if (res.Status == PromptStatus.OK)
-            {
-                ObjectId[] ids = res.Value.GetObjectIds();
-
-                if (!_seamGroups.ContainsKey(currentSeam))
-                {
-                    _seamGroups.Add(currentSeam, new HashSet<ObjectId>());
-                }
-
-                HashSet<ObjectId> bucket = _seamGroups[currentSeam];
-
-                int before = bucket.Count;
-                foreach (ObjectId id in ids)
-                {
-                    bucket.Add(id);
-                }
-                int added = bucket.Count - before;
-
-                if (added > 0)
-                {
-                    MessageBox.Show($"Đã lưu {added} đối tượng mới vào '{currentSeam}'.\nTổng cộng: {bucket.Count}");
-                    UpdateSeamInfoLabel();
-                }
-                else
-                {
-                    MessageBox.Show($"Các đối tượng này đã tồn tại trong '{currentSeam}'. Không có gì mới được thêm.");
-                }
-            }
+            StoreEntities(_seamGroups, ListOfSeams, lblSeamCount);
+        }
+        private void OnStoreRoofs_Click(object sender, EventArgs e)
+        {
+            StoreEntities(_roofGroups, ListOfRoofs, lblRoofCount);
         }
 
+        private void OnStoreFloors_Click(object sender, EventArgs e)
+        {
+            StoreEntities(_floorGroups, ListOfFloors, lblFloorCount);
+        }
+
+        private void OnStoreFaults_Click(object sender, EventArgs e)
+        {
+            StoreEntities(_faultGroups, ListOfFaults, lblFaultCount);
+        }
+        //----------------------------
         private void OnClose_Click(object sender, EventArgs e)
         {
             this.Close();
@@ -115,9 +79,9 @@ namespace AutoCAD_NET_4_8_Framework
 
         private void OnExportToJSON_Click(object sender, EventArgs e)
         {
-            if (_seamGroups.Count == 0 || _seamGroups.All(k => k.Value.Count == 0))
+            if (_seamGroups.Count == 0 && _roofGroups.Count == 0 && _floorGroups.Count == 0)
             {
-                MessageBox.Show("Chưa có dữ liệu nào được lưu trong danh sách vỉa.");
+                MessageBox.Show("Chưa có dữ liệu nào (Vỉa, Vách, Trụ) được lưu.");
                 return;
             }
 
@@ -147,24 +111,14 @@ namespace AutoCAD_NET_4_8_Framework
             using (DocumentLock docLock = doc.LockDocument())
             using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
             {
-                foreach (var kvp in _seamGroups)
-                {
-                    string seamName = kvp.Key;            
-                    HashSet<ObjectId> ids = kvp.Value;    
+                ProcessDictionaryForExport(tr, _seamGroups, "Via", directory, baseName, jsonSettings, ref filesCreated);
 
-                    if (ids.Count == 0) continue; 
-                    List<CADObjectData> seamData = GetCadData(tr, ids.ToList(), seamName);
+                ProcessDictionaryForExport(tr, _roofGroups, "Vach", directory, baseName, jsonSettings, ref filesCreated);
 
-                    if (seamData.Count > 0)
-                    {
-                        string safeSeamName = string.Join("_", seamName.Split(Path.GetInvalidFileNameChars()));
-                        string filePath = Path.Combine(directory, $"{baseName}_{safeSeamName}.json");
+                ProcessDictionaryForExport(tr, _floorGroups, "Tru", directory, baseName, jsonSettings, ref filesCreated);
 
-                        string json = JsonConvert.SerializeObject(seamData, jsonSettings);
-                        File.WriteAllText(filePath, json);
-                        filesCreated++;
-                    }
-                }
+                ProcessDictionaryForExport(tr, _faultGroups, "dg", directory, baseName, jsonSettings, ref filesCreated);
+
                 tr.Commit();
             }
 
@@ -173,16 +127,21 @@ namespace AutoCAD_NET_4_8_Framework
 
         private async void OnSendToServer_Click(object sender, EventArgs e)
         {
-            if (_seamGroups.Count == 0 || _seamGroups.All(k => k.Value.Count == 0))
+            bool hasSeams = _seamGroups.Any(k => k.Value.Count > 0);
+            bool hasRoofs = _roofGroups.Any(k => k.Value.Count > 0);
+            bool hasFloors = _floorGroups.Any(k => k.Value.Count > 0);
+            bool hasFaults = _faultGroups.Any(k => k.Value.Count > 0);
+
+            if (!hasSeams && !hasRoofs && !hasFloors && !hasFaults)
             {
-                MessageBox.Show("Chưa có dữ liệu nào để gửi. Hãy thêm vỉa và lưu đối tượng trước.");
+                MessageBox.Show("Chưa có dữ liệu nào (Vỉa, Vách, Trụ, Đứt gãy) để gửi.");
                 return;
             }
 
             string ipInput = txtServerUrl.Text.Trim();
             if (string.IsNullOrEmpty(ipInput))
             {
-                MessageBox.Show("Please enter a Server IP address.");
+                MessageBox.Show("Hãy điền đúng địa chỉ IP.");
                 return;
             }
 
@@ -193,16 +152,23 @@ namespace AutoCAD_NET_4_8_Framework
             using (DocumentLock docLock = doc.LockDocument())
             using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
             {
-                foreach (var kvp in _seamGroups)
+                void CollectData(Dictionary<string, HashSet<ObjectId>> groups, string prefix)
                 {
-                    string seamName = kvp.Key;            
-                    List<ObjectId> ids = kvp.Value.ToList(); 
+                    foreach (var kvp in groups)
+                    {
+                        if (kvp.Value.Count == 0) continue;
 
-                    if (ids.Count == 0) continue;
+                        string fullGroupName = $"{prefix}_{kvp.Key}";
 
-                    List<CADObjectData> seamData = GetCadData(tr, ids, seamName);
-                    masterUploadList.AddRange(seamData);
+                        List<CADObjectData> data = GetCadData(tr, kvp.Value.ToList(), fullGroupName);
+                        masterUploadList.AddRange(data);
+                    }
                 }
+
+                CollectData(_seamGroups, "via");
+                CollectData(_roofGroups, "vach");
+                CollectData(_floorGroups, "tru");
+                CollectData(_faultGroups, "dg");
                 tr.Commit();
             }
 
@@ -233,28 +199,6 @@ namespace AutoCAD_NET_4_8_Framework
         private void UI_Events_Load(object sender, EventArgs e)
         {
             this.TopMost = true;
-        }
-
-        private List<ObjectId> PromptUserForSelection(string promptMessage)
-        {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            Editor ed = doc.Editor;
-
-            this.Hide();
-
-            PromptSelectionOptions opt = new PromptSelectionOptions();
-            opt.MessageForAdding = promptMessage;
-
-            PromptSelectionResult res = ed.GetSelection(opt);
-
-            this.Show();
-
-            if (res.Status == PromptStatus.OK)
-            {
-                return new List<ObjectId>(res.Value.GetObjectIds());
-            }
-
-            return new List<ObjectId>();
         }
 
         private async Task UploadJsonDataAsync(List<CADObjectData> payload, string serverUrl)
@@ -364,18 +308,120 @@ namespace AutoCAD_NET_4_8_Framework
             return tempList;
         }
 
-        private void UpdateSeamInfoLabel()
+        private void UpdateLabel(WinCombo comboBox, Dictionary<string, HashSet<ObjectId>> groups, Label groupSelectedName)
         {
-            string currentSeam = ListOfSeams.SelectedItem as string;
+            string currentBox = comboBox.SelectedItem as string;
 
-            if (string.IsNullOrEmpty(currentSeam) || !_seamGroups.ContainsKey(currentSeam))
+            if (string.IsNullOrEmpty(currentBox) || !groups.ContainsKey(currentBox))
             {
-                SelectedObjectsLabel.Text = "Số đối tượng: 0";
+                groupSelectedName.Text = "Số đối tượng: 0";
                 return;
             }
 
-            int count = _seamGroups[currentSeam].Count;
-            SelectedObjectsLabel.Text = $"Số đối tượng: {count}";
+            int count = groups[currentBox].Count;
+            groupSelectedName.Text = $"Số đối tượng: {count}";
         }
+
+        private void StoreEntities(Dictionary<string, HashSet<ObjectId>> groups, WinCombo comboBox, Label groupSelectedName)
+        {
+            string type = comboBox.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(type))
+            {
+                MessageBox.Show("Hãy chọn vỉa từ danh sách để lưu các đối tượng đã chọn.");
+                return;
+            }
+
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            PromptSelectionResult res = ed.SelectImplied();
+
+            if (res.Status != PromptStatus.OK)
+            {
+                this.Hide();
+
+                PromptSelectionOptions opt = new PromptSelectionOptions();
+                opt.MessageForAdding = $"\nChọn đối tượng cho vỉa '{type}': ";
+                res = ed.GetSelection(opt);
+
+                this.Show();
+            }
+
+            if (res.Status == PromptStatus.OK)
+            {
+                ObjectId[] ids = res.Value.GetObjectIds();
+
+                if (!groups.ContainsKey(type))
+                {
+                    groups.Add(type, new HashSet<ObjectId>());
+                }
+
+                HashSet<ObjectId> bucket = groups[type];
+
+                int before = bucket.Count;
+                foreach (ObjectId id in ids)
+                {
+                    bucket.Add(id);
+                }
+                int added = bucket.Count - before;
+
+                if (added > 0)
+                {
+                    MessageBox.Show($"Đã lưu {added} đối tượng mới vào '{type}'.\nTổng cộng: {bucket.Count}");
+                    UpdateLabel(comboBox, groups, groupSelectedName);
+                }
+                else
+                {
+                    MessageBox.Show($"Các đối tượng này đã tồn tại trong '{type}'. Không có gì mới được thêm.");
+                }
+            }
+        }
+
+        private void ChooseEntities(WinCombo comboBox, Dictionary<string, HashSet<ObjectId>> groups)
+        {
+            string name = comboBox.Text.Trim();
+
+            if (string.IsNullOrEmpty(name))
+            {
+                MessageBox.Show("Hãy điền tên vỉa để thêm vào danh sách.");
+                return;
+            }
+            if (groups.ContainsKey(name))
+            {
+                MessageBox.Show("Vỉa cùng tên đã tồn tại trong danh sách. Hãy chọn tên khác.");
+                return;
+            }
+
+            groups.Add(name, new HashSet<ObjectId>());
+
+            comboBox.Items.Add(name);
+            comboBox.SelectedItem = name;
+
+            MessageBox.Show($"Đã thêm vỉa '{name}' vào danh sách.");
+        }
+
+        private void ProcessDictionaryForExport(Transaction tr, Dictionary<string, HashSet<ObjectId>> groups, string prefix, string dir, string baseName, JsonSerializerSettings settings, ref int files)
+        {
+            foreach (var kvp in groups)
+            {
+                if (kvp.Value.Count == 0) continue;
+
+                // Note: GroupName sent to JSON is "Via_Via1" or "Vach_Vach1"
+                string fullGroupName = $"{prefix}_{kvp.Key}";
+                List<CADObjectData> data = GetCadData(tr, kvp.Value.ToList(), fullGroupName);
+
+                if (data.Count > 0)
+                {
+                    string safeName = string.Join("_", kvp.Key.Split(Path.GetInvalidFileNameChars()));
+                    string filePath = Path.Combine(dir, $"{baseName}_{prefix}_{safeName}.json");
+
+                    File.WriteAllText(filePath, JsonConvert.SerializeObject(data, settings));
+                    files++;
+                }
+            }
+        }
+
+
     }
 }

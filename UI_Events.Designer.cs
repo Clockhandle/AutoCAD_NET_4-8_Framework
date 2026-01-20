@@ -32,23 +32,44 @@
             this.OnExportToCSV = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
             this.Seam = new System.Windows.Forms.GroupBox();
-            this.SelectedObjectsLabel = new System.Windows.Forms.Label();
+            this.lblSeamCount = new System.Windows.Forms.Label();
             this.OnStoreSeams = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.OnAddSeams = new System.Windows.Forms.Button();
             this.ListOfSeams = new System.Windows.Forms.ComboBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.label2 = new System.Windows.Forms.Label();
             this.txtServerUrl = new System.Windows.Forms.TextBox();
+            this.label2 = new System.Windows.Forms.Label();
+            this.Roof = new System.Windows.Forms.GroupBox();
+            this.lblRoofCount = new System.Windows.Forms.Label();
+            this.OnStoreRoofs = new System.Windows.Forms.Button();
+            this.label4 = new System.Windows.Forms.Label();
+            this.OnAddRoofs = new System.Windows.Forms.Button();
+            this.ListOfRoofs = new System.Windows.Forms.ComboBox();
+            this.Floor = new System.Windows.Forms.GroupBox();
+            this.lblFloorCount = new System.Windows.Forms.Label();
+            this.OnStoreFloors = new System.Windows.Forms.Button();
+            this.label6 = new System.Windows.Forms.Label();
+            this.OnAddFloors = new System.Windows.Forms.Button();
+            this.ListOfFloors = new System.Windows.Forms.ComboBox();
+            this.Fault = new System.Windows.Forms.GroupBox();
+            this.lblFaultCount = new System.Windows.Forms.Label();
+            this.OnStoreFaults = new System.Windows.Forms.Button();
+            this.label5 = new System.Windows.Forms.Label();
+            this.OnAddFaults = new System.Windows.Forms.Button();
+            this.ListOfFaults = new System.Windows.Forms.ComboBox();
             this.Seam.SuspendLayout();
             this.groupBox1.SuspendLayout();
+            this.Roof.SuspendLayout();
+            this.Floor.SuspendLayout();
+            this.Fault.SuspendLayout();
             this.SuspendLayout();
             // 
             // OnClose
             // 
-            this.OnClose.Location = new System.Drawing.Point(722, 369);
+            this.OnClose.Location = new System.Drawing.Point(373, 371);
             this.OnClose.Name = "OnClose";
-            this.OnClose.Size = new System.Drawing.Size(187, 45);
+            this.OnClose.Size = new System.Drawing.Size(192, 45);
             this.OnClose.TabIndex = 1;
             this.OnClose.Text = "Close";
             this.OnClose.UseVisualStyleBackColor = true;
@@ -56,9 +77,9 @@
             // 
             // OnExportToCSV
             // 
-            this.OnExportToCSV.Location = new System.Drawing.Point(722, 305);
+            this.OnExportToCSV.Location = new System.Drawing.Point(373, 311);
             this.OnExportToCSV.Name = "OnExportToCSV";
-            this.OnExportToCSV.Size = new System.Drawing.Size(186, 45);
+            this.OnExportToCSV.Size = new System.Drawing.Size(192, 45);
             this.OnExportToCSV.TabIndex = 2;
             this.OnExportToCSV.Text = "ExportToJSON";
             this.OnExportToCSV.UseVisualStyleBackColor = true;
@@ -76,26 +97,26 @@
             // 
             // Seam
             // 
-            this.Seam.Controls.Add(this.SelectedObjectsLabel);
+            this.Seam.Controls.Add(this.lblSeamCount);
             this.Seam.Controls.Add(this.OnStoreSeams);
             this.Seam.Controls.Add(this.label1);
             this.Seam.Controls.Add(this.OnAddSeams);
             this.Seam.Controls.Add(this.ListOfSeams);
             this.Seam.Location = new System.Drawing.Point(12, 12);
             this.Seam.Name = "Seam";
-            this.Seam.Size = new System.Drawing.Size(247, 462);
+            this.Seam.Size = new System.Drawing.Size(295, 162);
             this.Seam.TabIndex = 6;
             this.Seam.TabStop = false;
             this.Seam.Text = "Vía";
             // 
-            // SelectedObjectsLabel
+            // lblSeamCount
             // 
-            this.SelectedObjectsLabel.AutoSize = true;
-            this.SelectedObjectsLabel.Location = new System.Drawing.Point(14, 143);
-            this.SelectedObjectsLabel.Name = "SelectedObjectsLabel";
-            this.SelectedObjectsLabel.Size = new System.Drawing.Size(107, 13);
-            this.SelectedObjectsLabel.TabIndex = 6;
-            this.SelectedObjectsLabel.Text = "Số vía trong mảng: 0";
+            this.lblSeamCount.AutoSize = true;
+            this.lblSeamCount.Location = new System.Drawing.Point(141, 123);
+            this.lblSeamCount.Name = "lblSeamCount";
+            this.lblSeamCount.Size = new System.Drawing.Size(131, 13);
+            this.lblSeamCount.TabIndex = 6;
+            this.lblSeamCount.Text = "Số vía trong danh sách: 0";
             // 
             // OnStoreSeams
             // 
@@ -139,12 +160,19 @@
             this.groupBox1.Controls.Add(this.txtServerUrl);
             this.groupBox1.Controls.Add(this.button3);
             this.groupBox1.Controls.Add(this.label2);
-            this.groupBox1.Location = new System.Drawing.Point(713, 190);
+            this.groupBox1.Location = new System.Drawing.Point(373, 219);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Size = new System.Drawing.Size(192, 86);
             this.groupBox1.TabIndex = 7;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "SendToServer";
+            // 
+            // txtServerUrl
+            // 
+            this.txtServerUrl.Location = new System.Drawing.Point(38, 25);
+            this.txtServerUrl.Name = "txtServerUrl";
+            this.txtServerUrl.Size = new System.Drawing.Size(140, 20);
+            this.txtServerUrl.TabIndex = 7;
             // 
             // label2
             // 
@@ -155,19 +183,195 @@
             this.label2.TabIndex = 6;
             this.label2.Text = "IP : ";
             // 
-            // txtServerUrl
+            // Roof
             // 
-            this.txtServerUrl.Location = new System.Drawing.Point(38, 25);
-            this.txtServerUrl.Name = "txtServerUrl";
-            this.txtServerUrl.Size = new System.Drawing.Size(140, 20);
-            this.txtServerUrl.TabIndex = 7;
+            this.Roof.Controls.Add(this.lblRoofCount);
+            this.Roof.Controls.Add(this.OnStoreRoofs);
+            this.Roof.Controls.Add(this.label4);
+            this.Roof.Controls.Add(this.OnAddRoofs);
+            this.Roof.Controls.Add(this.ListOfRoofs);
+            this.Roof.Location = new System.Drawing.Point(12, 180);
+            this.Roof.Name = "Roof";
+            this.Roof.Size = new System.Drawing.Size(295, 162);
+            this.Roof.TabIndex = 7;
+            this.Roof.TabStop = false;
+            this.Roof.Text = "Vách";
+            // 
+            // lblRoofCount
+            // 
+            this.lblRoofCount.AutoSize = true;
+            this.lblRoofCount.Location = new System.Drawing.Point(141, 123);
+            this.lblRoofCount.Name = "lblRoofCount";
+            this.lblRoofCount.Size = new System.Drawing.Size(139, 13);
+            this.lblRoofCount.TabIndex = 6;
+            this.lblRoofCount.Text = "Số vách trong danh sách: 0";
+            // 
+            // OnStoreRoofs
+            // 
+            this.OnStoreRoofs.Location = new System.Drawing.Point(144, 84);
+            this.OnStoreRoofs.Name = "OnStoreRoofs";
+            this.OnStoreRoofs.Size = new System.Drawing.Size(75, 23);
+            this.OnStoreRoofs.TabIndex = 5;
+            this.OnStoreRoofs.Text = "Lưu";
+            this.OnStoreRoofs.UseVisualStyleBackColor = true;
+            this.OnStoreRoofs.Click += new System.EventHandler(this.OnStoreRoofs_Click);
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(14, 39);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(89, 13);
+            this.label4.TabIndex = 4;
+            this.label4.Text = "Danh sách vách:";
+            // 
+            // OnAddRoofs
+            // 
+            this.OnAddRoofs.Location = new System.Drawing.Point(144, 55);
+            this.OnAddRoofs.Name = "OnAddRoofs";
+            this.OnAddRoofs.Size = new System.Drawing.Size(75, 23);
+            this.OnAddRoofs.TabIndex = 2;
+            this.OnAddRoofs.Text = "Thêm vách";
+            this.OnAddRoofs.UseVisualStyleBackColor = true;
+            this.OnAddRoofs.Click += new System.EventHandler(this.OnAddRoofs_Click);
+            // 
+            // ListOfRoofs
+            // 
+            this.ListOfRoofs.FormattingEnabled = true;
+            this.ListOfRoofs.Location = new System.Drawing.Point(17, 55);
+            this.ListOfRoofs.Name = "ListOfRoofs";
+            this.ListOfRoofs.Size = new System.Drawing.Size(121, 21);
+            this.ListOfRoofs.TabIndex = 1;
+            // 
+            // Floor
+            // 
+            this.Floor.Controls.Add(this.lblFloorCount);
+            this.Floor.Controls.Add(this.OnStoreFloors);
+            this.Floor.Controls.Add(this.label6);
+            this.Floor.Controls.Add(this.OnAddFloors);
+            this.Floor.Controls.Add(this.ListOfFloors);
+            this.Floor.Location = new System.Drawing.Point(12, 353);
+            this.Floor.Name = "Floor";
+            this.Floor.Size = new System.Drawing.Size(295, 162);
+            this.Floor.TabIndex = 7;
+            this.Floor.TabStop = false;
+            this.Floor.Text = "Trụ";
+            // 
+            // lblFloorCount
+            // 
+            this.lblFloorCount.AutoSize = true;
+            this.lblFloorCount.Location = new System.Drawing.Point(141, 123);
+            this.lblFloorCount.Name = "lblFloorCount";
+            this.lblFloorCount.Size = new System.Drawing.Size(127, 13);
+            this.lblFloorCount.TabIndex = 6;
+            this.lblFloorCount.Text = "Số trụ trong danh sách: 0";
+            // 
+            // OnStoreFloors
+            // 
+            this.OnStoreFloors.Location = new System.Drawing.Point(144, 84);
+            this.OnStoreFloors.Name = "OnStoreFloors";
+            this.OnStoreFloors.Size = new System.Drawing.Size(75, 23);
+            this.OnStoreFloors.TabIndex = 5;
+            this.OnStoreFloors.Text = "Lưu";
+            this.OnStoreFloors.UseVisualStyleBackColor = true;
+            this.OnStoreFloors.Click += new System.EventHandler(this.OnStoreFloors_Click);
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(14, 39);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(77, 13);
+            this.label6.TabIndex = 4;
+            this.label6.Text = "Danh sách trụ:";
+            // 
+            // OnAddFloors
+            // 
+            this.OnAddFloors.Location = new System.Drawing.Point(144, 55);
+            this.OnAddFloors.Name = "OnAddFloors";
+            this.OnAddFloors.Size = new System.Drawing.Size(75, 23);
+            this.OnAddFloors.TabIndex = 2;
+            this.OnAddFloors.Text = "Thêm trụ";
+            this.OnAddFloors.UseVisualStyleBackColor = true;
+            this.OnAddFloors.Click += new System.EventHandler(this.OnAddFloors_Click);
+            // 
+            // ListOfFloors
+            // 
+            this.ListOfFloors.FormattingEnabled = true;
+            this.ListOfFloors.Location = new System.Drawing.Point(17, 55);
+            this.ListOfFloors.Name = "ListOfFloors";
+            this.ListOfFloors.Size = new System.Drawing.Size(121, 21);
+            this.ListOfFloors.TabIndex = 1;
+            // 
+            // Fault
+            // 
+            this.Fault.Controls.Add(this.lblFaultCount);
+            this.Fault.Controls.Add(this.OnStoreFaults);
+            this.Fault.Controls.Add(this.label5);
+            this.Fault.Controls.Add(this.OnAddFaults);
+            this.Fault.Controls.Add(this.ListOfFaults);
+            this.Fault.Location = new System.Drawing.Point(313, 12);
+            this.Fault.Name = "Fault";
+            this.Fault.Size = new System.Drawing.Size(295, 162);
+            this.Fault.TabIndex = 7;
+            this.Fault.TabStop = false;
+            this.Fault.Text = "Đứt gãy";
+            // 
+            // lblFaultCount
+            // 
+            this.lblFaultCount.AutoSize = true;
+            this.lblFaultCount.Location = new System.Drawing.Point(141, 123);
+            this.lblFaultCount.Name = "lblFaultCount";
+            this.lblFaultCount.Size = new System.Drawing.Size(151, 13);
+            this.lblFaultCount.TabIndex = 6;
+            this.lblFaultCount.Text = "Số đứt gãy trong danh sách: 0";
+            // 
+            // OnStoreFaults
+            // 
+            this.OnStoreFaults.Location = new System.Drawing.Point(144, 84);
+            this.OnStoreFaults.Name = "OnStoreFaults";
+            this.OnStoreFaults.Size = new System.Drawing.Size(88, 23);
+            this.OnStoreFaults.TabIndex = 5;
+            this.OnStoreFaults.Text = "Lưu";
+            this.OnStoreFaults.UseVisualStyleBackColor = true;
+            this.OnStoreFaults.Click += new System.EventHandler(this.OnStoreFaults_Click);
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Location = new System.Drawing.Point(14, 39);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(101, 13);
+            this.label5.TabIndex = 4;
+            this.label5.Text = "Danh sách đứt gãy:";
+            // 
+            // OnAddFaults
+            // 
+            this.OnAddFaults.Location = new System.Drawing.Point(144, 55);
+            this.OnAddFaults.Name = "OnAddFaults";
+            this.OnAddFaults.Size = new System.Drawing.Size(88, 23);
+            this.OnAddFaults.TabIndex = 2;
+            this.OnAddFaults.Text = "Thêm đứt gãy";
+            this.OnAddFaults.UseVisualStyleBackColor = true;
+            this.OnAddFaults.Click += new System.EventHandler(this.OnAddFaults_Click);
+            // 
+            // ListOfFaults
+            // 
+            this.ListOfFaults.FormattingEnabled = true;
+            this.ListOfFaults.Location = new System.Drawing.Point(17, 55);
+            this.ListOfFaults.Name = "ListOfFaults";
+            this.ListOfFaults.Size = new System.Drawing.Size(121, 21);
+            this.ListOfFaults.TabIndex = 1;
             // 
             // UI_Events
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            this.ClientSize = new System.Drawing.Size(966, 486);
+            this.ClientSize = new System.Drawing.Size(624, 530);
+            this.Controls.Add(this.Fault);
+            this.Controls.Add(this.Floor);
+            this.Controls.Add(this.Roof);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.Seam);
             this.Controls.Add(this.OnExportToCSV);
@@ -179,6 +383,12 @@
             this.Seam.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.Roof.ResumeLayout(false);
+            this.Roof.PerformLayout();
+            this.Floor.ResumeLayout(false);
+            this.Floor.PerformLayout();
+            this.Fault.ResumeLayout(false);
+            this.Fault.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -192,9 +402,27 @@
         private System.Windows.Forms.ComboBox ListOfSeams;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button OnStoreSeams;
-        private System.Windows.Forms.Label SelectedObjectsLabel;
+        private System.Windows.Forms.Label lblSeamCount;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TextBox txtServerUrl;
+        private System.Windows.Forms.GroupBox Roof;
+        private System.Windows.Forms.Label lblRoofCount;
+        private System.Windows.Forms.Button OnStoreRoofs;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Button OnAddRoofs;
+        private System.Windows.Forms.ComboBox ListOfRoofs;
+        private System.Windows.Forms.GroupBox Floor;
+        private System.Windows.Forms.Label lblFloorCount;
+        private System.Windows.Forms.Button OnStoreFloors;
+        private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.Button OnAddFloors;
+        private System.Windows.Forms.ComboBox ListOfFloors;
+        private System.Windows.Forms.GroupBox Fault;
+        private System.Windows.Forms.Label lblFaultCount;
+        private System.Windows.Forms.Button OnStoreFaults;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.Button OnAddFaults;
+        private System.Windows.Forms.ComboBox ListOfFaults;
     }
 }
