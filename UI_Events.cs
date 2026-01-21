@@ -33,22 +33,26 @@ namespace AutoCAD_NET_4_8_Framework
         private void OnAddSeams_Click(object sender, EventArgs e)
         {
             ChooseEntities(ListOfSeams, _seamGroups);
+            SaveProjectState();
 
         }
         private void OnAddRoofs_Click(object sender, EventArgs e)
         {
             ChooseEntities(ListOfRoofs, _roofGroups);
+            SaveProjectState();
         }
 
 
         private void OnAddFloors_Click(object sender, EventArgs e)
         {
             ChooseEntities(ListOfFloors, _floorGroups);
+            SaveProjectState();
         }
 
         private void OnAddFaults_Click(object sender, EventArgs e)
         {
             ChooseEntities(ListOfFaults, _faultGroups);
+            SaveProjectState();
         }
         //---------------------------
 
@@ -56,21 +60,52 @@ namespace AutoCAD_NET_4_8_Framework
         private void OnStoreSeams_Click(object sender, EventArgs e)
         {
             StoreEntities(_seamGroups, ListOfSeams, lblSeamCount);
+            SaveProjectState();
         }
         private void OnStoreRoofs_Click(object sender, EventArgs e)
         {
             StoreEntities(_roofGroups, ListOfRoofs, lblRoofCount);
+            SaveProjectState();
         }
 
         private void OnStoreFloors_Click(object sender, EventArgs e)
         {
             StoreEntities(_floorGroups, ListOfFloors, lblFloorCount);
+            SaveProjectState();
         }
 
         private void OnStoreFaults_Click(object sender, EventArgs e)
         {
             StoreEntities(_faultGroups, ListOfFaults, lblFaultCount);
+            SaveProjectState();
         }
+        //----------------------------
+
+        //------ Deleting Events ------
+        private void OnDeleteSeams_Click(object sender, EventArgs e)
+        {
+            DeleteEntity(ListOfSeams, _seamGroups, lblSeamCount);
+            SaveProjectState();
+        }
+
+        private void OnDeleteRoofs_Click(object sender, EventArgs e)
+        {
+            DeleteEntity(ListOfRoofs, _roofGroups, lblRoofCount);
+            SaveProjectState();
+        }
+
+        private void OnDeleteFloors_Click(object sender, EventArgs e)
+        {
+            DeleteEntity(ListOfFloors, _floorGroups, lblFloorCount);
+            SaveProjectState();
+        }
+
+        private void OnDeleteFaults_Click(object sender, EventArgs e)
+        {
+            DeleteEntity(ListOfFaults, _faultGroups, lblFaultCount);
+            SaveProjectState();
+        }
+
         //----------------------------
         private void OnClose_Click(object sender, EventArgs e)
         {
@@ -199,6 +234,42 @@ namespace AutoCAD_NET_4_8_Framework
         private void UI_Events_Load(object sender, EventArgs e)
         {
             this.TopMost = true;
+
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+
+            AutoCADObjectData savedState = AutoCADObjectStateManager.LoadState(doc);
+
+            if (savedState != null)
+            {
+                AutoCADObjectStateManager.ReconstructDictionaries(
+                    doc.Database, 
+                    savedState, 
+                    out _seamGroups, 
+                    out _roofGroups, 
+                    out _floorGroups, 
+                    out _faultGroups);
+
+                RefreshUI(ListOfSeams, _seamGroups);
+                RefreshUI(ListOfRoofs, _roofGroups);
+                RefreshUI(ListOfFloors, _floorGroups);
+                RefreshUI(ListOfFaults, _faultGroups);
+            }
+        }
+
+        private void SaveProjectState()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            AutoCADObjectStateManager.SaveState(doc, _seamGroups, _roofGroups, _floorGroups, _faultGroups);
+        }
+
+        private void RefreshUI(WinCombo comboBox, Dictionary<string, HashSet<ObjectId>> groups)
+        {
+            comboBox.Items.Clear();
+            foreach (var key in groups.Keys)
+            {
+                comboBox.Items.Add(key);
+            }
+            if(comboBox.Items.Count > 0) comboBox.SelectedIndex = 0;
         }
 
         private async Task UploadJsonDataAsync(List<CADObjectData> payload, string serverUrl)
@@ -328,53 +399,54 @@ namespace AutoCAD_NET_4_8_Framework
 
             if (string.IsNullOrEmpty(type))
             {
-                MessageBox.Show("Hãy chọn vỉa từ danh sách để lưu các đối tượng đã chọn.");
+                MessageBox.Show("Hãy chọn tên từ danh sách để lưu các đối tượng đã chọn.");
                 return;
             }
 
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Editor ed = doc.Editor;
 
-            PromptSelectionResult res = ed.SelectImplied();
+            this.Hide();
 
-            if (res.Status != PromptStatus.OK)
+            System.Windows.Forms.Application.DoEvents(); // Ensure Hide() completes visually
+            Autodesk.AutoCAD.ApplicationServices.Application.MainWindow.Focus();
+
+            try
             {
-                this.Hide();
-
                 PromptSelectionOptions opt = new PromptSelectionOptions();
-                opt.MessageForAdding = $"\nChọn đối tượng cho vỉa '{type}': ";
-                res = ed.GetSelection(opt);
+                opt.MessageForAdding = $"\nChọn đối tượng cho '{type}' (Nhấn Space/Enter để kết thúc): ";
+                opt.AllowDuplicates = false;
+
+                PromptSelectionResult res = ed.GetSelection(opt);
 
                 this.Show();
+
+                if (res.Status == PromptStatus.OK)
+                {
+                    ObjectId[] ids = res.Value.GetObjectIds();
+
+                    if (!groups.ContainsKey(type)) groups.Add(type, new HashSet<ObjectId>());
+
+                    HashSet<ObjectId> bucket = groups[type];
+                    int before = bucket.Count;
+                    foreach (ObjectId id in ids) bucket.Add(id);
+                    int added = bucket.Count - before;
+
+                    if (added > 0)
+                    {
+                        UpdateLabel(comboBox, groups, groupSelectedName);
+                        MessageBox.Show($"Đã lưu {added} đối tượng mới vào '{type}'.\nTổng cộng: {bucket.Count}");
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Các đối tượng này đã tồn tại trong '{type}'. Không có gì mới được thêm.");
+                    }
+                }
             }
-
-            if (res.Status == PromptStatus.OK)
+            catch (System.Exception ex)
             {
-                ObjectId[] ids = res.Value.GetObjectIds();
-
-                if (!groups.ContainsKey(type))
-                {
-                    groups.Add(type, new HashSet<ObjectId>());
-                }
-
-                HashSet<ObjectId> bucket = groups[type];
-
-                int before = bucket.Count;
-                foreach (ObjectId id in ids)
-                {
-                    bucket.Add(id);
-                }
-                int added = bucket.Count - before;
-
-                if (added > 0)
-                {
-                    MessageBox.Show($"Đã lưu {added} đối tượng mới vào '{type}'.\nTổng cộng: {bucket.Count}");
-                    UpdateLabel(comboBox, groups, groupSelectedName);
-                }
-                else
-                {
-                    MessageBox.Show($"Các đối tượng này đã tồn tại trong '{type}'. Không có gì mới được thêm.");
-                }
+                this.Show();
+                MessageBox.Show("Lỗi khi chọn đối tượng: " + ex.Message);
             }
         }
 
@@ -407,7 +479,6 @@ namespace AutoCAD_NET_4_8_Framework
             {
                 if (kvp.Value.Count == 0) continue;
 
-                // Note: GroupName sent to JSON is "Via_Via1" or "Vach_Vach1"
                 string fullGroupName = $"{prefix}_{kvp.Key}";
                 List<CADObjectData> data = GetCadData(tr, kvp.Value.ToList(), fullGroupName);
 
@@ -422,6 +493,36 @@ namespace AutoCAD_NET_4_8_Framework
             }
         }
 
+        private void DeleteEntity(WinCombo comboBox, Dictionary<string, HashSet<ObjectId>> groups, Label lbl)
+        {
+            string name = comboBox.SelectedItem as string;
 
+            if (string.IsNullOrEmpty(name)) return;
+
+            DialogResult result = MessageBox.Show(
+                $"Bạn có chắc chắn muốn xóa vỉa '{name}' và tất cả các đối tượng đã lưu trong đó không?",
+                "Xác nhận xóa",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+                );
+
+            if (result == DialogResult.Yes)
+            {
+                if (groups.ContainsKey(name)) groups.Remove(name);
+
+                comboBox.Items.Remove(name);
+
+                if (comboBox.Items.Count > 0)
+                {
+                    comboBox.SelectedIndex = 0;
+                }
+                else
+                {
+                    comboBox.Text = "";
+                    lbl.Text = "Số đối tượng: 0";
+                }
+            }
+            else return; //clicked No, do nothing
+        }
     }
 }

@@ -8,7 +8,7 @@ using Newtonsoft.Json;
 
 namespace AutoCAD_NET_4_8_Framework
 {
-    public class Class1
+    public class MainLoader
     {
         private static UI_Events _myForm;
 
