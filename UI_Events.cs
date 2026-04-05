@@ -29,7 +29,7 @@ namespace AutoCAD_NET_4_8_Framework
             InitializeComponent();
         }
 
-        //------ Adding Events ------
+        #region Adding Events
         private void OnAddSeams_Click(object sender, EventArgs e)
         {
             ChooseEntities(ListOfSeams, _seamGroups);
@@ -54,9 +54,9 @@ namespace AutoCAD_NET_4_8_Framework
             ChooseEntities(ListOfFaults, _faultGroups);
             SaveProjectState();
         }
-        //---------------------------
+        #endregion
 
-        //------ Storing Events ------
+        #region Storing Events
         private void OnStoreSeams_Click(object sender, EventArgs e)
         {
             StoreEntities(_seamGroups, ListOfSeams, lblSeamCount);
@@ -79,9 +79,9 @@ namespace AutoCAD_NET_4_8_Framework
             StoreEntities(_faultGroups, ListOfFaults, lblFaultCount);
             SaveProjectState();
         }
-        //----------------------------
+        #endregion
 
-        //------ Deleting Events ------
+        #region Deleting Events
         private void OnDeleteSeams_Click(object sender, EventArgs e)
         {
             DeleteEntity(ListOfSeams, _seamGroups, lblSeamCount);
@@ -106,7 +106,7 @@ namespace AutoCAD_NET_4_8_Framework
             SaveProjectState();
         }
 
-        //----------------------------
+        #endregion
         private void OnClose_Click(object sender, EventArgs e)
         {
             this.Close();
@@ -173,64 +173,93 @@ namespace AutoCAD_NET_4_8_Framework
                 return;
             }
 
+            // 2. IP & Port Validation (Keep this)
             string ipInput = txtServerUrl.Text.Trim();
-            if (string.IsNullOrEmpty(ipInput))
+            string portInput = txtServerPort.Text.Trim();
+            if (string.IsNullOrEmpty(ipInput) || string.IsNullOrEmpty(portInput))
             {
-                MessageBox.Show("Hãy điền đúng địa chỉ IP.");
+                MessageBox.Show("Hãy điền đúng địa chỉ IP và port.");
                 return;
             }
 
-            List<CADObjectData> masterUploadList = new List<CADObjectData>();
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-
-            // 2. Extract Data from all Seams
-            using (DocumentLock docLock = doc.LockDocument())
-            using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
+            if (!int.TryParse(portInput, out int portNumber))
             {
-                void CollectData(Dictionary<string, HashSet<ObjectId>> groups, string prefix)
+                MessageBox.Show("Port must be a number (e.g., 5000).");
+                return;
+            }
+
+            string finalUrl = $"http://{ipInput}:{portInput}";
+
+            using (SelectionForm dlg = new SelectionForm())
+            {
+                if (dlg.ShowDialog() != DialogResult.OK)
                 {
-                    foreach (var kvp in groups)
+                    return;
+                }
+
+                if (dlg.clbData.CheckedItems.Count == 0)
+                {
+                    MessageBox.Show("Bạn chưa chọn loại dữ liệu nào trong danh sách.");
+                    return;
+                }
+
+                List<CADObjectData> masterUploadList = new List<CADObjectData>();
+                Document doc = Application.DocumentManager.MdiActiveDocument;
+
+                using (DocumentLock docLock = doc.LockDocument())
+                using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
+                {
+                    void CollectData(Dictionary<string, HashSet<ObjectId>> groups, string prefix)
                     {
-                        if (kvp.Value.Count == 0) continue;
+                        foreach (var kvp in groups)
+                        {
+                            if (kvp.Value.Count == 0) continue;
+                            string fullGroupName = $"{prefix}_{kvp.Key}";
+                            List<CADObjectData> data = GetCadData(tr, kvp.Value.ToList(), fullGroupName);
+                            masterUploadList.AddRange(data);
+                        }
+                    }
 
-                        string fullGroupName = $"{prefix}_{kvp.Key}";
+                    if (dlg.clbData.CheckedItems.Contains("Vỉa"))
+                        CollectData(_seamGroups, "via");
 
-                        List<CADObjectData> data = GetCadData(tr, kvp.Value.ToList(), fullGroupName);
-                        masterUploadList.AddRange(data);
+                    if (dlg.clbData.CheckedItems.Contains("Vách"))
+                        CollectData(_roofGroups, "vach");
+
+                    if (dlg.clbData.CheckedItems.Contains("Trụ"))
+                        CollectData(_floorGroups, "tru");
+
+                    if (dlg.clbData.CheckedItems.Contains("Đứt gãy"))
+                        CollectData(_faultGroups, "dg");
+
+                    tr.Commit();
+                }
+
+                if (masterUploadList.Count > 0)
+                {
+                    System.Windows.Forms.Button btn = sender as System.Windows.Forms.Button;
+                    string originalText = btn.Text;
+                    btn.Text = "Uploading...";
+                    btn.Enabled = false;
+
+                    try
+                    {
+                        await UploadJsonDataAsync(masterUploadList, finalUrl);
+                    }
+                    finally
+                    {
+                        btn.Text = originalText;
+                        btn.Enabled = true;
                     }
                 }
-
-                CollectData(_seamGroups, "via");
-                CollectData(_roofGroups, "vach");
-                CollectData(_floorGroups, "tru");
-                CollectData(_faultGroups, "dg");
-                tr.Commit();
-            }
-
-            if (masterUploadList.Count > 0)
-            {
-                System.Windows.Forms.Button btn = sender as System.Windows.Forms.Button;
-                string originalText = btn.Text;
-                btn.Text = "Uploading...";
-                btn.Enabled = false;
-
-                try
+                else
                 {
-                    await UploadJsonDataAsync(masterUploadList, ipInput);
+                    MessageBox.Show("Không tìm thấy đối tượng hợp lệ nào trong các mục đã chọn.");
                 }
-                finally
-                {
-                    btn.Text = originalText;
-                    btn.Enabled = true;
-                }
-            }
-            else
-            {
-                MessageBox.Show("Không tìm thấy đối tượng hợp lệ nào để upload (có thể chúng đã bị xóa khỏi bản vẽ).");
             }
         }
 
-        //Helper functions
+        #region Helper Methods
         private void UI_Events_Load(object sender, EventArgs e)
         {
             this.TopMost = true;
@@ -275,7 +304,7 @@ namespace AutoCAD_NET_4_8_Framework
         private async Task UploadJsonDataAsync(List<CADObjectData> payload, string serverUrl)
         {
             string cleanBaseUrl = serverUrl.TrimEnd('/');
-            string fullUrl = $"{cleanBaseUrl}/api/cad-upload";
+            string fullUrl = $"{cleanBaseUrl}/api/cad-data";
 
             try
             {
@@ -316,7 +345,8 @@ namespace AutoCAD_NET_4_8_Framework
                     GroupName = groupName,
                     Handle = ent.Handle.ToString(),
                     ObjectType = ent.GetType().Name,
-                    Layer = ent.Layer
+                    Layer = ent.Layer,
+                    FlattenedVertices = new List<double[]>()
                 };
 
                 if (ent is Line line)
@@ -374,6 +404,56 @@ namespace AutoCAD_NET_4_8_Framework
                     data.EndAngle = ellipse.EndAngle;
                 }
 
+                if (ent is Curve curve && !(ent is Line))
+                {
+                    double stepSize = 2.0; //change step size here for more/less detail
+
+                    try
+                    {
+                        double startParam = curve.StartParam;
+                        double endParam = curve.EndParam;
+
+                        double length = curve.GetDistanceAtParameter(endParam) - curve.GetDistanceAtParameter(startParam);
+
+                        if (length > 0)
+                        {
+                            // 1. Walk the curve
+                            for (double d = 0; d <= length; d += stepSize)
+                            {
+                                Point3d pt = curve.GetPointAtDist(d);
+                                data.FlattenedVertices.Add(new double[] { pt.X, pt.Y, pt.Z });
+                            }
+
+                            Point3d endPt = curve.EndPoint;
+
+                            if (data.FlattenedVertices.Count > 0)
+                            {
+                                // This section is for Poly2Tri compatability - avoid duplicate start/end points
+                                double[] lastPt = data.FlattenedVertices.Last();
+                                double[] firstPt = data.FlattenedVertices.First(); // <--- Get the Start
+
+                                bool isDuplicateOfLast = (Math.Abs(lastPt[0] - endPt.X) < 0.001 &&
+                                                          Math.Abs(lastPt[1] - endPt.Y) < 0.001);
+
+                                bool isDuplicateOfFirst = (Math.Abs(firstPt[0] - endPt.X) < 0.001 &&
+                                                           Math.Abs(firstPt[1] - endPt.Y) < 0.001);
+
+                                if (!isDuplicateOfLast && !isDuplicateOfFirst)
+                                {
+                                    data.FlattenedVertices.Add(new double[] { endPt.X, endPt.Y, endPt.Z });
+                                }
+                            }
+                            else
+                            {
+                                data.FlattenedVertices.Add(new double[] { endPt.X, endPt.Y, endPt.Z });
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // If math fails, just skip flattening for this object
+                    }
+                }
                 tempList.Add(data);
             }
             return tempList;
@@ -524,5 +604,6 @@ namespace AutoCAD_NET_4_8_Framework
             }
             else return; //clicked No, do nothing
         }
+        #endregion
     }
 }

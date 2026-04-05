@@ -32,36 +32,38 @@
             this.OnExportToCSV = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
             this.Seam = new System.Windows.Forms.GroupBox();
+            this.OnDeleteSeams = new System.Windows.Forms.Button();
             this.lblSeamCount = new System.Windows.Forms.Label();
             this.OnStoreSeams = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.OnAddSeams = new System.Windows.Forms.Button();
             this.ListOfSeams = new System.Windows.Forms.ComboBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.txtServerPort = new System.Windows.Forms.TextBox();
+            this.label3 = new System.Windows.Forms.Label();
             this.txtServerUrl = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
             this.Roof = new System.Windows.Forms.GroupBox();
+            this.OnDeleteRoofs = new System.Windows.Forms.Button();
             this.lblRoofCount = new System.Windows.Forms.Label();
             this.OnStoreRoofs = new System.Windows.Forms.Button();
             this.label4 = new System.Windows.Forms.Label();
             this.OnAddRoofs = new System.Windows.Forms.Button();
             this.ListOfRoofs = new System.Windows.Forms.ComboBox();
             this.Floor = new System.Windows.Forms.GroupBox();
+            this.OnDeleteFloors = new System.Windows.Forms.Button();
             this.lblFloorCount = new System.Windows.Forms.Label();
             this.OnStoreFloors = new System.Windows.Forms.Button();
             this.label6 = new System.Windows.Forms.Label();
             this.OnAddFloors = new System.Windows.Forms.Button();
             this.ListOfFloors = new System.Windows.Forms.ComboBox();
             this.Fault = new System.Windows.Forms.GroupBox();
+            this.OnDeleteFaults = new System.Windows.Forms.Button();
             this.lblFaultCount = new System.Windows.Forms.Label();
             this.OnStoreFaults = new System.Windows.Forms.Button();
             this.label5 = new System.Windows.Forms.Label();
             this.OnAddFaults = new System.Windows.Forms.Button();
             this.ListOfFaults = new System.Windows.Forms.ComboBox();
-            this.OnDeleteSeams = new System.Windows.Forms.Button();
-            this.OnDeleteRoofs = new System.Windows.Forms.Button();
-            this.OnDeleteFloors = new System.Windows.Forms.Button();
-            this.OnDeleteFaults = new System.Windows.Forms.Button();
             this.Seam.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.Roof.SuspendLayout();
@@ -71,9 +73,9 @@
             // 
             // OnClose
             // 
-            this.OnClose.Location = new System.Drawing.Point(374, 385);
+            this.OnClose.Location = new System.Drawing.Point(477, 334);
             this.OnClose.Name = "OnClose";
-            this.OnClose.Size = new System.Drawing.Size(192, 45);
+            this.OnClose.Size = new System.Drawing.Size(86, 25);
             this.OnClose.TabIndex = 1;
             this.OnClose.Text = "Close";
             this.OnClose.UseVisualStyleBackColor = true;
@@ -81,9 +83,9 @@
             // 
             // OnExportToCSV
             // 
-            this.OnExportToCSV.Location = new System.Drawing.Point(374, 334);
+            this.OnExportToCSV.Location = new System.Drawing.Point(10, 70);
             this.OnExportToCSV.Name = "OnExportToCSV";
-            this.OnExportToCSV.Size = new System.Drawing.Size(192, 45);
+            this.OnExportToCSV.Size = new System.Drawing.Size(86, 29);
             this.OnExportToCSV.TabIndex = 2;
             this.OnExportToCSV.Text = "ExportToJSON";
             this.OnExportToCSV.UseVisualStyleBackColor = true;
@@ -91,11 +93,11 @@
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(92, 51);
+            this.button3.Location = new System.Drawing.Point(118, 70);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(86, 25);
             this.button3.TabIndex = 5;
-            this.button3.Text = "SendToServer";
+            this.button3.Text = "Gửi";
             this.button3.UseVisualStyleBackColor = true;
             this.button3.Click += new System.EventHandler(this.OnSendToServer_Click);
             // 
@@ -113,6 +115,16 @@
             this.Seam.TabIndex = 6;
             this.Seam.TabStop = false;
             this.Seam.Text = "Vía";
+            // 
+            // OnDeleteSeams
+            // 
+            this.OnDeleteSeams.Location = new System.Drawing.Point(144, 109);
+            this.OnDeleteSeams.Name = "OnDeleteSeams";
+            this.OnDeleteSeams.Size = new System.Drawing.Size(88, 23);
+            this.OnDeleteSeams.TabIndex = 7;
+            this.OnDeleteSeams.Text = "Xóa danh sách";
+            this.OnDeleteSeams.UseVisualStyleBackColor = true;
+            this.OnDeleteSeams.Click += new System.EventHandler(this.OnDeleteSeams_Click);
             // 
             // lblSeamCount
             // 
@@ -162,31 +174,52 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.txtServerPort);
+            this.groupBox1.Controls.Add(this.label3);
             this.groupBox1.Controls.Add(this.txtServerUrl);
             this.groupBox1.Controls.Add(this.button3);
             this.groupBox1.Controls.Add(this.label2);
-            this.groupBox1.Location = new System.Drawing.Point(374, 242);
+            this.groupBox1.Controls.Add(this.OnExportToCSV);
+            this.groupBox1.Location = new System.Drawing.Point(359, 219);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(192, 86);
+            this.groupBox1.Size = new System.Drawing.Size(219, 109);
             this.groupBox1.TabIndex = 7;
             this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "SendToServer";
+            this.groupBox1.Text = "Gửi danh sách chọn cho server";
+            // 
+            // txtServerPort
+            // 
+            this.txtServerPort.Location = new System.Drawing.Point(154, 28);
+            this.txtServerPort.Name = "txtServerPort";
+            this.txtServerPort.Size = new System.Drawing.Size(60, 20);
+            this.txtServerPort.TabIndex = 9;
+            this.txtServerPort.Text = "3000";
+            // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(143, 31);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(16, 13);
+            this.label3.TabIndex = 8;
+            this.label3.Text = " : ";
+            this.label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // txtServerUrl
             // 
-            this.txtServerUrl.Location = new System.Drawing.Point(38, 25);
+            this.txtServerUrl.Location = new System.Drawing.Point(60, 28);
             this.txtServerUrl.Name = "txtServerUrl";
-            this.txtServerUrl.Size = new System.Drawing.Size(140, 20);
+            this.txtServerUrl.Size = new System.Drawing.Size(88, 20);
             this.txtServerUrl.TabIndex = 7;
             // 
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(6, 28);
+            this.label2.Location = new System.Drawing.Point(6, 31);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(26, 13);
+            this.label2.Size = new System.Drawing.Size(48, 13);
             this.label2.TabIndex = 6;
-            this.label2.Text = "IP : ";
+            this.label2.Text = "IP_Port :";
             // 
             // Roof
             // 
@@ -202,6 +235,16 @@
             this.Roof.TabIndex = 7;
             this.Roof.TabStop = false;
             this.Roof.Text = "Vách";
+            // 
+            // OnDeleteRoofs
+            // 
+            this.OnDeleteRoofs.Location = new System.Drawing.Point(144, 109);
+            this.OnDeleteRoofs.Name = "OnDeleteRoofs";
+            this.OnDeleteRoofs.Size = new System.Drawing.Size(88, 23);
+            this.OnDeleteRoofs.TabIndex = 7;
+            this.OnDeleteRoofs.Text = "Xóa danh sách";
+            this.OnDeleteRoofs.UseVisualStyleBackColor = true;
+            this.OnDeleteRoofs.Click += new System.EventHandler(this.OnDeleteRoofs_Click);
             // 
             // lblRoofCount
             // 
@@ -264,6 +307,16 @@
             this.Floor.TabStop = false;
             this.Floor.Text = "Trụ";
             // 
+            // OnDeleteFloors
+            // 
+            this.OnDeleteFloors.Location = new System.Drawing.Point(144, 109);
+            this.OnDeleteFloors.Name = "OnDeleteFloors";
+            this.OnDeleteFloors.Size = new System.Drawing.Size(88, 23);
+            this.OnDeleteFloors.TabIndex = 7;
+            this.OnDeleteFloors.Text = "Xóa danh sách";
+            this.OnDeleteFloors.UseVisualStyleBackColor = true;
+            this.OnDeleteFloors.Click += new System.EventHandler(this.OnDeleteFloors_Click);
+            // 
             // lblFloorCount
             // 
             this.lblFloorCount.AutoSize = true;
@@ -325,6 +378,16 @@
             this.Fault.TabStop = false;
             this.Fault.Text = "Đứt gãy";
             // 
+            // OnDeleteFaults
+            // 
+            this.OnDeleteFaults.Location = new System.Drawing.Point(144, 109);
+            this.OnDeleteFaults.Name = "OnDeleteFaults";
+            this.OnDeleteFaults.Size = new System.Drawing.Size(88, 23);
+            this.OnDeleteFaults.TabIndex = 8;
+            this.OnDeleteFaults.Text = "Xóa danh sách";
+            this.OnDeleteFaults.UseVisualStyleBackColor = true;
+            this.OnDeleteFaults.Click += new System.EventHandler(this.OnDeleteFaults_Click);
+            // 
             // lblFaultCount
             // 
             this.lblFaultCount.AutoSize = true;
@@ -371,46 +434,6 @@
             this.ListOfFaults.Size = new System.Drawing.Size(121, 21);
             this.ListOfFaults.TabIndex = 1;
             // 
-            // OnDeleteSeams
-            // 
-            this.OnDeleteSeams.Location = new System.Drawing.Point(144, 109);
-            this.OnDeleteSeams.Name = "OnDeleteSeams";
-            this.OnDeleteSeams.Size = new System.Drawing.Size(88, 23);
-            this.OnDeleteSeams.TabIndex = 7;
-            this.OnDeleteSeams.Text = "Xóa danh sách";
-            this.OnDeleteSeams.UseVisualStyleBackColor = true;
-            this.OnDeleteSeams.Click += new System.EventHandler(this.OnDeleteSeams_Click);
-            // 
-            // OnDeleteRoofs
-            // 
-            this.OnDeleteRoofs.Location = new System.Drawing.Point(144, 109);
-            this.OnDeleteRoofs.Name = "OnDeleteRoofs";
-            this.OnDeleteRoofs.Size = new System.Drawing.Size(88, 23);
-            this.OnDeleteRoofs.TabIndex = 7;
-            this.OnDeleteRoofs.Text = "Xóa danh sách";
-            this.OnDeleteRoofs.UseVisualStyleBackColor = true;
-            this.OnDeleteRoofs.Click += new System.EventHandler(this.OnDeleteRoofs_Click);
-            // 
-            // OnDeleteFloors
-            // 
-            this.OnDeleteFloors.Location = new System.Drawing.Point(144, 109);
-            this.OnDeleteFloors.Name = "OnDeleteFloors";
-            this.OnDeleteFloors.Size = new System.Drawing.Size(88, 23);
-            this.OnDeleteFloors.TabIndex = 7;
-            this.OnDeleteFloors.Text = "Xóa danh sách";
-            this.OnDeleteFloors.UseVisualStyleBackColor = true;
-            this.OnDeleteFloors.Click += new System.EventHandler(this.OnDeleteFloors_Click);
-            // 
-            // OnDeleteFaults
-            // 
-            this.OnDeleteFaults.Location = new System.Drawing.Point(144, 109);
-            this.OnDeleteFaults.Name = "OnDeleteFaults";
-            this.OnDeleteFaults.Size = new System.Drawing.Size(88, 23);
-            this.OnDeleteFaults.TabIndex = 8;
-            this.OnDeleteFaults.Text = "Xóa danh sách";
-            this.OnDeleteFaults.UseVisualStyleBackColor = true;
-            this.OnDeleteFaults.Click += new System.EventHandler(this.OnDeleteFaults_Click);
-            // 
             // UI_Events
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -422,7 +445,6 @@
             this.Controls.Add(this.Roof);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.Seam);
-            this.Controls.Add(this.OnExportToCSV);
             this.Controls.Add(this.OnClose);
             this.Name = "UI_Events";
             this.Text = "Bảng Chọn Data";
@@ -476,5 +498,7 @@
         private System.Windows.Forms.Button OnDeleteRoofs;
         private System.Windows.Forms.Button OnDeleteFloors;
         private System.Windows.Forms.Button OnDeleteFaults;
+        private System.Windows.Forms.TextBox txtServerPort;
+        private System.Windows.Forms.Label label3;
     }
 }

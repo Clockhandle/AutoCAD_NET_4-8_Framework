@@ -10,6 +10,11 @@ namespace AutoCAD_NET_4_8_Framework
         public string Handle { get; set; }
         public string ObjectType { get; set; }
         public string Layer { get; set; }
+        
+        // --- Color Information ---
+        public int ColorIndex { get; set; }           // AutoCAD color index (0-255)
+        public string ColorName { get; set; }         // Color name (e.g., "Red", "ByLayer")
+        public int[] TrueColor { get; set; }          // RGB values [R, G, B] (0-255 each)
 
         // --- Linear (Line, Polyline) ---
         public double[] StartPoint { get; set; }
@@ -44,5 +49,6 @@ namespace AutoCAD_NET_4_8_Framework
 
         // --- Generic ---
         public double? Rotation { get; set; } // Useful for Text, Blocks, etc.
+        public List<double[]> FlattenedVertices { get; set; } = new List<double[]>(); //flatten all curves to vertices
     }
 }

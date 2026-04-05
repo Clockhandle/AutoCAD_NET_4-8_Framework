@@ -11,7 +11,22 @@ namespace AutoCAD_NET_4_8_Framework
     public class MainLoader
     {
         private static UI_Events _myForm;
+        [CommandMethod("OPENMINING")]
+        public void OpenMiningUI()
+        {
+            // Check if form is already open to avoid duplicates
+            foreach (System.Windows.Forms.Form form in System.Windows.Forms.Application.OpenForms)
+            {
+                if (form is MyMiningPlugin.MiningManagerForm)
+                {
+                    form.Activate();
+                    return;
+                }
+            }
 
+            MyMiningPlugin.MiningManagerForm myForm = new MyMiningPlugin.MiningManagerForm();
+            Autodesk.AutoCAD.ApplicationServices.Application.ShowModelessDialog(myForm);
+        }
         [CommandMethod("OpenObjectSelectionUI")]
         public void OpenObjectSelectionUI()
         {

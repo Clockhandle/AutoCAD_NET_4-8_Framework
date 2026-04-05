@@ -61,12 +61,22 @@
       <HintPath>E:\AutoCAD\AutoCAD 2022\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="ExcelDataReader, Version=3.8.0.0, Culture=neutral, PublicKeyToken=93517dbe6a4012fa, processorArchitecture=MSIL">
+      <HintPath>packages\ExcelDataReader.3.8.0\lib\net462\ExcelDataReader.dll</HintPath>
+    </Reference>
+    <Reference Include="ExcelDataReader.DataSet, Version=3.8.0.0, Culture=neutral, PublicKeyToken=93517dbe6a4012fa, processorArchitecture=MSIL">
+      <HintPath>packages\ExcelDataReader.DataSet.3.8.0\lib\net462\ExcelDataReader.DataSet.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
+    </Reference>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -77,8 +87,26 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CADObjectData.cs" />
+    <Compile Include="MiningManagerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Models\MiningDataModels.cs" />
+    <Compile Include="SelectionForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SelectionForm.Designer.cs">
+      <DependentUpon>SelectionForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="MainLoader.cs" />
     <Compile Include="AutoCADObjectStateManager.cs" />
+    <Compile Include="Services\AutoCADSelectionService.cs" />
+    <Compile Include="Services\BoreholeExcelParser.cs" />
+    <Compile Include="Services\ExportService.cs" />
+    <Compile Include="Services\GeometryProcessingService.cs" />
+    <Compile Include="Services\PersistenceService.cs" />
+    <Compile Include="UI\ExportDialogs.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="UI_Events.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -93,6 +121,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="SelectionForm.resx">
+      <DependentUpon>SelectionForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="UI_Events.resx">
       <DependentUpon>UI_Events.cs</DependentUpon>
     </EmbeddedResource>
@@ -102,7 +133,14 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="CRITICAL_FIX_SUMMARY.md" />
+    <None Include="DEBUGGING_GUIDE.md" />
+    <None Include="EXPORT_BUG_FIX.md" />
+    <None Include="EXPORT_DEBUGGING_GUIDE.md" />
+    <None Include="EXPORT_FIX_EXPLANATION.md" />
     <None Include="packages.config" />
+    <None Include="REFACTORING_COMPLETE.md" />
+    <None Include="REFACTORING_SUMMARY.md" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
