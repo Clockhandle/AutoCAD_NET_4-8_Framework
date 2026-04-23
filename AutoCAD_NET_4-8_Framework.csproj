@@ -87,8 +87,29 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CADObjectData.cs" />
-    <Compile Include="MiningManagerForm.cs">
+    <Compile Include="MiningManagerDForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MiningManagerDForm.Designer.cs">
+      <DependentUpon>MiningManagerDForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCBoreholes.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCBoreholes.Designer.cs">
+      <DependentUpon>UCBoreholes.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCKhoi.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCKhoi.Designer.cs">
+      <DependentUpon>UCKhoi.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCRootCategory.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCRootCategory.Designer.cs">
+      <DependentUpon>UCRootCategory.cs</DependentUpon>
     </Compile>
     <Compile Include="Models\MiningDataModels.cs" />
     <Compile Include="SelectionForm.cs">
@@ -104,6 +125,18 @@
     <Compile Include="Services\ExportService.cs" />
     <Compile Include="Services\GeometryProcessingService.cs" />
     <Compile Include="Services\PersistenceService.cs" />
+    <Compile Include="UCSurface.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCSurface.Designer.cs">
+      <DependentUpon>UCSurface.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCVia.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCVia.Designer.cs">
+      <DependentUpon>UCVia.cs</DependentUpon>
+    </Compile>
     <Compile Include="UI\ExportDialogs.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -121,8 +154,26 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="MiningManagerDForm.resx">
+      <DependentUpon>MiningManagerDForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="SelectionForm.resx">
       <DependentUpon>SelectionForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCBoreholes.resx">
+      <DependentUpon>UCBoreholes.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCKhoi.resx">
+      <DependentUpon>UCKhoi.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCRootCategory.resx">
+      <DependentUpon>UCRootCategory.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCSurface.resx">
+      <DependentUpon>UCSurface.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCVia.resx">
+      <DependentUpon>UCVia.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UI_Events.resx">
       <DependentUpon>UI_Events.cs</DependentUpon>
