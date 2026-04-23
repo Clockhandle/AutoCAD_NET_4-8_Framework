@@ -8,16 +8,31 @@ using Newtonsoft.Json;
 
 namespace AutoCAD_NET_4_8_Framework
 {
-    public class Class1
+    public class MainLoader
     {
-        private static Form1 _myForm;
+        private static UI_Events _myForm;
+        [CommandMethod("OPENMINING")]
+        public void OpenMiningUI()
+        {
+            // Check if form is already open to avoid duplicates
+            foreach (System.Windows.Forms.Form form in System.Windows.Forms.Application.OpenForms)
+            {
+                if (form is MiningManagerDForm)
+                {
+                    form.Activate();
+                    return;
+                }
+            }
 
+            MiningManagerDForm myForm = new MiningManagerDForm();
+            Autodesk.AutoCAD.ApplicationServices.Application.ShowModelessDialog(myForm);
+        }
         [CommandMethod("OpenObjectSelectionUI")]
         public void OpenObjectSelectionUI()
         {
             if (_myForm == null || _myForm.IsDisposed)
             {
-                _myForm = new Form1();
+                _myForm = new UI_Events();
             }
 
             // Passing 'null' as the owner creates a floating window

@@ -61,12 +61,22 @@
       <HintPath>E:\AutoCAD\AutoCAD 2022\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="ExcelDataReader, Version=3.8.0.0, Culture=neutral, PublicKeyToken=93517dbe6a4012fa, processorArchitecture=MSIL">
+      <HintPath>packages\ExcelDataReader.3.8.0\lib\net462\ExcelDataReader.dll</HintPath>
+    </Reference>
+    <Reference Include="ExcelDataReader.DataSet, Version=3.8.0.0, Culture=neutral, PublicKeyToken=93517dbe6a4012fa, processorArchitecture=MSIL">
+      <HintPath>packages\ExcelDataReader.DataSet.3.8.0\lib\net462\ExcelDataReader.DataSet.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
+    </Reference>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -77,12 +87,64 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CADObjectData.cs" />
-    <Compile Include="Class1.cs" />
-    <Compile Include="Form1.cs">
+    <Compile Include="MiningManagerDForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Form1.Designer.cs">
-      <DependentUpon>Form1.cs</DependentUpon>
+    <Compile Include="MiningManagerDForm.Designer.cs">
+      <DependentUpon>MiningManagerDForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCBoreholes.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCBoreholes.Designer.cs">
+      <DependentUpon>UCBoreholes.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCKhoi.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCKhoi.Designer.cs">
+      <DependentUpon>UCKhoi.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCRootCategory.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCRootCategory.Designer.cs">
+      <DependentUpon>UCRootCategory.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Models\MiningDataModels.cs" />
+    <Compile Include="SelectionForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SelectionForm.Designer.cs">
+      <DependentUpon>SelectionForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MainLoader.cs" />
+    <Compile Include="AutoCADObjectStateManager.cs" />
+    <Compile Include="Services\AutoCADSelectionService.cs" />
+    <Compile Include="Services\BoreholeExcelParser.cs" />
+    <Compile Include="Services\ExportService.cs" />
+    <Compile Include="Services\GeometryProcessingService.cs" />
+    <Compile Include="Services\PersistenceService.cs" />
+    <Compile Include="UCSurface.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCSurface.Designer.cs">
+      <DependentUpon>UCSurface.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCVia.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCVia.Designer.cs">
+      <DependentUpon>UCVia.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UI\ExportDialogs.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UI_Events.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UI_Events.Designer.cs">
+      <DependentUpon>UI_Events.cs</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
@@ -92,8 +154,29 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Form1.resx">
-      <DependentUpon>Form1.cs</DependentUpon>
+    <EmbeddedResource Include="MiningManagerDForm.resx">
+      <DependentUpon>MiningManagerDForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SelectionForm.resx">
+      <DependentUpon>SelectionForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCBoreholes.resx">
+      <DependentUpon>UCBoreholes.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCKhoi.resx">
+      <DependentUpon>UCKhoi.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCRootCategory.resx">
+      <DependentUpon>UCRootCategory.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCSurface.resx">
+      <DependentUpon>UCSurface.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCVia.resx">
+      <DependentUpon>UCVia.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UI_Events.resx">
+      <DependentUpon>UI_Events.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -101,7 +184,14 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="CRITICAL_FIX_SUMMARY.md" />
+    <None Include="DEBUGGING_GUIDE.md" />
+    <None Include="EXPORT_BUG_FIX.md" />
+    <None Include="EXPORT_DEBUGGING_GUIDE.md" />
+    <None Include="EXPORT_FIX_EXPLANATION.md" />
     <None Include="packages.config" />
+    <None Include="REFACTORING_COMPLETE.md" />
+    <None Include="REFACTORING_SUMMARY.md" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
