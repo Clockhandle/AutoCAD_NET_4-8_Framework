@@ -487,8 +487,6 @@ namespace AutoCAD_NET_4_8_Framework
             Editor ed = doc.Editor;
 
             this.Hide();
-
-            System.Windows.Forms.Application.DoEvents(); // Ensure Hide() completes visually
             Autodesk.AutoCAD.ApplicationServices.Application.MainWindow.Focus();
 
             try

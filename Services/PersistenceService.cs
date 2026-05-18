@@ -76,17 +76,18 @@ namespace MyMiningPlugin.Services
             }
         }
 
-        public MiningProject LoadProjectData()
+    public MiningProject LoadProjectData(bool silent = false)
+    {
+        try
         {
-            try
+            string path = GetProjectDataPath();
+            if (!File.Exists(path))
             {
-                string path = GetProjectDataPath();
-                if (!File.Exists(path))
-                {
+                if (!silent)
                     MessageBox.Show("Chưa có dữ liệu dự án đã lưu.", "Thông báo", 
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return null;
-                }
+                return null;
+            }
 
                 string json = File.ReadAllText(path);
                 dynamic projectData = JsonConvert.DeserializeObject<dynamic>(json);
@@ -178,17 +179,19 @@ namespace MyMiningPlugin.Services
                     }
                 }
 
-                MessageBox.Show($"Đã tải dự án từ:\n{path}", "Tải thành công", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (!silent)
+                    MessageBox.Show($"Đã tải dự án từ:\n{path}", "Tải thành công", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 return project;
             }
-            catch (Exception ex)
-            {
+        catch (Exception ex)
+        {
+            if (!silent)
                 MessageBox.Show($"Lỗi khi tải: {ex.Message}", "Lỗi", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return null;
-            }
+            return null;
+        }
         }
 
         private object SerializeSurfaceData(SurfaceData surface)
@@ -205,18 +208,34 @@ namespace MyMiningPlugin.Services
                     g.Layer,
                     g.EntityType,
                     g.VertexCount
+                }).ToList(),
+                BoundaryGeometry = surface.BoundaryGeometry.Select(g => new
+                {
+                    g.Handle,
+                    g.SourceDwgPath,
+                    g.SourceDwgName,
+                    g.Layer,
+                    g.EntityType,
+                    g.VertexCount
                 }).ToList()
             };
         }
 
         private SurfaceData DeserializeSurfaceData(dynamic surfaceData)
         {
-            return new SurfaceData
+            var surface = new SurfaceData
             {
                 Type = surfaceData.Type.ToString(),
                 ParentName = surfaceData.ParentName.ToString(),
                 SelectedGeometry = DeserializeGeometryReferences(surfaceData.SelectedGeometry)
             };
+
+            if (surfaceData.BoundaryGeometry != null)
+            {
+                surface.BoundaryGeometry = DeserializeGeometryReferences(surfaceData.BoundaryGeometry);
+            }
+
+            return surface;
         }
 
         private List<GeometryReference> DeserializeGeometryReferences(dynamic geoList)

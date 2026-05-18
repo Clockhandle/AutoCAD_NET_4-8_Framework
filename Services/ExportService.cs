@@ -239,6 +239,7 @@ namespace MyMiningPlugin.Services
                         HttpResponseMessage response = await client.PostAsync(url, content);
                         string responseBody = await response.Content.ReadAsStringAsync();
 
+                        if (parentForm.IsDisposed) return;
                         parentForm.Invoke((MethodInvoker)delegate
                         {
                             if (response.IsSuccessStatusCode)
@@ -251,6 +252,7 @@ namespace MyMiningPlugin.Services
                     }
                     catch (Exception ex)
                     {
+                        if (parentForm.IsDisposed) return;
                         parentForm.Invoke((MethodInvoker)delegate
                         {
                             MessageBox.Show($"Lỗi kết nối: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -371,6 +373,7 @@ namespace MyMiningPlugin.Services
                 Name = name,
                 Type = type,
                 IsClosed = geo.IsClosed,
+                IsBoundary = geo.IsBoundary,
                 VertexCount = geo.FlattenedVertices.Count,
                 FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList()
             };
@@ -390,6 +393,7 @@ namespace MyMiningPlugin.Services
                     BlockName = blockName,
                     item.Type,
                     item.IsClosed,
+                    item.IsBoundary,
                     item.VertexCount,
                     item.FlattenedVertices
                 };
@@ -410,7 +414,9 @@ namespace MyMiningPlugin.Services
                         var via = project.Vias.FirstOrDefault(v => v.Name == name);
                         if (via != null)
                         {
-                            lineCount += via.Blocks.Sum(b => b.Vach.SelectedGeometry.Count + b.Tru.SelectedGeometry.Count);
+                            lineCount += via.Blocks.Sum(b => 
+                                b.Vach.SelectedGeometry.Count + b.Vach.BoundaryGeometry.Count + 
+                                b.Tru.SelectedGeometry.Count + b.Tru.BoundaryGeometry.Count);
                         }
                     }
                     break;
@@ -418,14 +424,14 @@ namespace MyMiningPlugin.Services
                     foreach (var name in selectedNames)
                     {
                         var fault = project.Faults.FirstOrDefault(f => f.Name == name);
-                        if (fault != null) lineCount += fault.Surface.SelectedGeometry.Count;
+                        if (fault != null) lineCount += fault.Surface.SelectedGeometry.Count + fault.Surface.BoundaryGeometry.Count;
                     }
                     break;
                 case "Nham thạch":
                     foreach (var name in selectedNames)
                     {
                         var rock = project.Rocks.FirstOrDefault(r => r.Name == name);
-                        if (rock != null) lineCount += rock.Surface.SelectedGeometry.Count;
+                        if (rock != null) lineCount += rock.Surface.SelectedGeometry.Count + rock.Surface.BoundaryGeometry.Count;
                     }
                     break;
                 case "Lỗ khoan":

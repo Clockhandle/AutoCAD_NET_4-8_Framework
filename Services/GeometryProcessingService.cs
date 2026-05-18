@@ -43,8 +43,14 @@ namespace MyMiningPlugin.Services
 
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
-                foreach (var geoRef in surface.SelectedGeometry)
+                // Iterate through both, while keeping track of which list they come from
+                var combinedList = surface.SelectedGeometry.Select(g => new { GeoRef = g, IsBoundary = false })
+                    .Concat(surface.BoundaryGeometry.Select(g => new { GeoRef = g, IsBoundary = true }));
+
+                foreach (var item in combinedList)
                 {
+                    var geoRef = item.GeoRef;
+
                     // Skip if not in current drawing
                     if (!geoRef.CurrentObjectId.HasValue || geoRef.CurrentObjectId.Value.IsNull)
                     {
@@ -67,6 +73,7 @@ namespace MyMiningPlugin.Services
                             ObjectType = surface.Type,
                             Layer = ent.Layer,
                             Handle = ent.Handle.ToString(),
+                            IsBoundary = item.IsBoundary,
                             Vertices = new List<double[]>(),
                             FlattenedVertices = new List<double[]>()
                         };
@@ -98,7 +105,7 @@ namespace MyMiningPlugin.Services
             // Debug output
             if (skippedCount > 0)
             {
-                System.Diagnostics.Debug.WriteLine($"ProcessGeometryWithSmartZ: Processed {processedCount}, Skipped {skippedCount} out of {surface.SelectedGeometry.Count} total");
+                System.Diagnostics.Debug.WriteLine($"ProcessGeometryWithSmartZ: Processed {processedCount}, Skipped {skippedCount} out of {surface.SelectedGeometry.Count + surface.BoundaryGeometry.Count} total");
             }
 
             return Task.FromResult(result);
@@ -155,6 +162,37 @@ namespace MyMiningPlugin.Services
                 for (int i = 0; i < pl.NumberOfVertices; i++)
                 {
                     rawPoints.Add(pl.GetPoint3dAt(i));
+                }
+            }
+            else if (ent is Polyline3d poly3d)
+            {
+                cadData.IsClosed = poly3d.Closed;
+                foreach (ObjectId vertexId in poly3d)
+                {
+                    var v3d = ent.Database.TransactionManager.TopTransaction.GetObject(vertexId, OpenMode.ForRead) as PolylineVertex3d;
+                    if (v3d != null)
+                        rawPoints.Add(v3d.Position);
+                }
+            }
+            else if (ent is Polyline2d poly2d)
+            {
+                cadData.IsClosed = poly2d.Closed;
+                foreach (ObjectId vertexId in poly2d)
+                {
+                    var v2d = ent.Database.TransactionManager.TopTransaction.GetObject(vertexId, OpenMode.ForRead) as Vertex2d;
+                    if (v2d != null)
+                        rawPoints.Add(v2d.Position);
+                }
+            }
+            else if (ent is Spline spline)
+            {
+                cadData.IsClosed = spline.Closed;
+                if (spline.NumControlPoints > 0)
+                {
+                    for (int i = 0; i < spline.NumControlPoints; i++)
+                    {
+                        rawPoints.Add(spline.GetControlPointAt(i));
+                    }
                 }
             }
             else if (ent is Line line)

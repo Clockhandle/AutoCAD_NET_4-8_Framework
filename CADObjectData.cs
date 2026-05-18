@@ -50,5 +50,7 @@ namespace AutoCAD_NET_4_8_Framework
         // --- Generic ---
         public double? Rotation { get; set; } // Useful for Text, Blocks, etc.
         public List<double[]> FlattenedVertices { get; set; } = new List<double[]>(); //flatten all curves to vertices
+        
+        public bool IsBoundary { get; set; } // Identifies if this acts as a boundary line
     }
 }

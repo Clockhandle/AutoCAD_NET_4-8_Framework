@@ -36,13 +36,13 @@ namespace AutoCAD_NET_4_8_Framework
             // Wire up the TreeView selection event
             treeView.AfterSelect += TreeView_AfterSelect;
             
-            // Try formatting first payload
-            LoadProjectData(); 
-            // In case LoadProjectData doesn't call RebuildTreeView when loadedProject is null
-            if (_project.Vias.Count == 0 && _project.Faults.Count == 0 && _project.Rocks.Count == 0 && _project.Boreholes.Count == 0)
+            // Try loading saved project silently (no MessageBox during construction)
+            var loadedProject = _persistenceService.LoadProjectData(silent: true);
+            if (loadedProject != null)
             {
-                RebuildTreeView();
+                _project = loadedProject;
             }
+            RebuildTreeView();
         }
 
         private void TreeView_AfterSelect(object sender, TreeViewEventArgs e)
@@ -186,14 +186,20 @@ namespace AutoCAD_NET_4_8_Framework
                     this.Show();
                     TreeView_AfterSelect(null, new TreeViewEventArgs(node)); // Refresh the node to update UI counts
                 },
-                onClearLines: () => {
+                onClearSurfaceLines: () => {
                     surface.SelectedGeometry.Clear();
                     TreeView_AfterSelect(null, new TreeViewEventArgs(node)); // Refresh
+                },
+                onClearBoundaryLines: () => {
+                    if (surface.BoundaryGeometry != null) surface.BoundaryGeometry.Clear();
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node)); // Refresh
+                },
+                onSelectBorderlines: () => {
+                    this.Hide();
+                    _selectionService.SelectBorderlinesFromAutoCAD(surface);
+                    this.Show();
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node)); // Refresh
                 }
-                //onSelectBorderlines: () => {
-                //    onSelectBorderlines?.Invoke();
-                //    rightPanel.Controls.Clear();
-                //}
             );
         }
 
@@ -341,7 +347,7 @@ namespace AutoCAD_NET_4_8_Framework
 
         private void LoadProjectData()
         {
-            var loadedProject = _persistenceService.LoadProjectData();
+            var loadedProject = _persistenceService.LoadProjectData(silent: false);
             if (loadedProject != null)
             {
                 _project = loadedProject;
@@ -395,12 +401,26 @@ namespace AutoCAD_NET_4_8_Framework
 
         private async void SendMultipleToServer(string category, List<string> selectedNames, string mapName, string ip, string port)
         {
-            await _exportService.SendToServer(category, selectedNames, mapName, ip, port, _project, this);
+            try
+            {
+                await _exportService.SendToServer(category, selectedNames, mapName, ip, port, _project, this);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi gửi dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private async void ExportMultipleToFile(string category, List<string> selectedNames, string mapName)
         {
-            await _exportService.ExportToFile(category, selectedNames, mapName, _project);
+            try
+            {
+                await _exportService.ExportToFile(category, selectedNames, mapName, _project);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi export: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void RebuildTreeView()

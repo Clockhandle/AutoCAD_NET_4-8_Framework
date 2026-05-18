@@ -28,21 +28,24 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.btnDeleteLine = new System.Windows.Forms.Button();
+            this.btnDeleteSurfaceLines = new System.Windows.Forms.Button();
             this.btnAddLine = new System.Windows.Forms.Button();
             this.lblLineData = new System.Windows.Forms.Label();
             this.listBoxIds = new System.Windows.Forms.ListBox();
+            this.btnAddBoundaryLine = new System.Windows.Forms.Button();
+            this.listBoundaryLineId = new System.Windows.Forms.ListBox();
+            this.btnDeleteBoundaryLines = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
-            // btnDeleteLine
+            // btnDeleteSurfaceLines
             // 
-            this.btnDeleteLine.Location = new System.Drawing.Point(44, 237);
-            this.btnDeleteLine.Name = "btnDeleteLine";
-            this.btnDeleteLine.Size = new System.Drawing.Size(116, 36);
-            this.btnDeleteLine.TabIndex = 8;
-            this.btnDeleteLine.Text = "Xóa dữ liệu";
-            this.btnDeleteLine.UseVisualStyleBackColor = true;
-            this.btnDeleteLine.Click += new System.EventHandler(this.BtnClearLines_Click);
+            this.btnDeleteSurfaceLines.Location = new System.Drawing.Point(166, 197);
+            this.btnDeleteSurfaceLines.Name = "btnDeleteSurfaceLines";
+            this.btnDeleteSurfaceLines.Size = new System.Drawing.Size(116, 36);
+            this.btnDeleteSurfaceLines.TabIndex = 8;
+            this.btnDeleteSurfaceLines.Text = "Xóa đường vách";
+            this.btnDeleteSurfaceLines.UseVisualStyleBackColor = true;
+            this.btnDeleteSurfaceLines.Click += new System.EventHandler(this.btnDeleteSurfaceLines_Click);
             // 
             // btnAddLine
             // 
@@ -72,12 +75,43 @@
             this.listBoxIds.Size = new System.Drawing.Size(423, 147);
             this.listBoxIds.TabIndex = 12;
             // 
+            // btnAddBoundaryLine
+            // 
+            this.btnAddBoundaryLine.Location = new System.Drawing.Point(44, 295);
+            this.btnAddBoundaryLine.Name = "btnAddBoundaryLine";
+            this.btnAddBoundaryLine.Size = new System.Drawing.Size(116, 34);
+            this.btnAddBoundaryLine.TabIndex = 13;
+            this.btnAddBoundaryLine.Text = "Chọn đường bao";
+            this.btnAddBoundaryLine.UseVisualStyleBackColor = true;
+            this.btnAddBoundaryLine.Click += new System.EventHandler(this.BtnAddBoundaryLine_Click);
+            // 
+            // listBoundaryLineId
+            // 
+            this.listBoundaryLineId.FormattingEnabled = true;
+            this.listBoundaryLineId.Location = new System.Drawing.Point(44, 246);
+            this.listBoundaryLineId.Name = "listBoundaryLineId";
+            this.listBoundaryLineId.Size = new System.Drawing.Size(423, 43);
+            this.listBoundaryLineId.TabIndex = 14;
+            // 
+            // btnDeleteBoundaryLines
+            // 
+            this.btnDeleteBoundaryLines.Location = new System.Drawing.Point(166, 295);
+            this.btnDeleteBoundaryLines.Name = "btnDeleteBoundaryLines";
+            this.btnDeleteBoundaryLines.Size = new System.Drawing.Size(116, 36);
+            this.btnDeleteBoundaryLines.TabIndex = 15;
+            this.btnDeleteBoundaryLines.Text = "Xóa đường bao";
+            this.btnDeleteBoundaryLines.UseVisualStyleBackColor = true;
+            this.btnDeleteBoundaryLines.Click += new System.EventHandler(this.btnDeleteBoundaryLines_Click);
+            // 
             // UCSurface
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.Controls.Add(this.btnDeleteBoundaryLines);
+            this.Controls.Add(this.listBoundaryLineId);
+            this.Controls.Add(this.btnAddBoundaryLine);
             this.Controls.Add(this.listBoxIds);
-            this.Controls.Add(this.btnDeleteLine);
+            this.Controls.Add(this.btnDeleteSurfaceLines);
             this.Controls.Add(this.btnAddLine);
             this.Controls.Add(this.lblLineData);
             this.Name = "UCSurface";
@@ -88,9 +122,12 @@
         }
 
         #endregion
-        private System.Windows.Forms.Button btnDeleteLine;
+        private System.Windows.Forms.Button btnDeleteSurfaceLines;
         private System.Windows.Forms.Button btnAddLine;
         private System.Windows.Forms.Label lblLineData;
         private System.Windows.Forms.ListBox listBoxIds;
+        private System.Windows.Forms.Button btnAddBoundaryLine;
+        private System.Windows.Forms.ListBox listBoundaryLineId;
+        private System.Windows.Forms.Button btnDeleteBoundaryLines;
     }
 }

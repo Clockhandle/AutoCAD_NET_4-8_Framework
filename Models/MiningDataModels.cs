@@ -23,6 +23,7 @@ namespace MyMiningPlugin.Models
         public string Type { get; set; } // "Vách", "Tr?", or "??t gãy"
         public string ParentName { get; set; } // For context (e.g., "V?a 8 - Kh?i 1")
         public List<GeometryReference> SelectedGeometry { get; set; } = new List<GeometryReference>();
+        public List<GeometryReference> BoundaryGeometry { get; set; } = new List<GeometryReference>();
     }
 
     // Persistent reference to CAD geometry across different drawings

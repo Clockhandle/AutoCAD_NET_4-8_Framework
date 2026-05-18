@@ -87,6 +87,72 @@ namespace MyMiningPlugin.Services
         }
 
         /// <summary>
+        /// Select boundary lines/polylines from AutoCAD and add to surface data
+        /// </summary>
+        public void SelectBorderlinesFromAutoCAD(SurfaceData surface)
+        {
+            Document doc = AcApp.DocumentManager.MdiActiveDocument;
+            if (doc == null)
+            {
+                MessageBox.Show("No active AutoCAD document.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            SelectionFilter filter = new SelectionFilter(new TypedValue[] {
+                new TypedValue((int)DxfCode.Start, "LWPOLYLINE,POLYLINE,LINE")
+            });
+
+            PromptSelectionOptions opts = new PromptSelectionOptions();
+            opts.MessageForAdding = $"\nChọn các đường biên cho {surface.Type}: ";
+
+            PromptSelectionResult res = ed.GetSelection(opts, filter);
+
+            if (res.Status == PromptStatus.OK)
+            {
+                SelectionSet ss = res.Value;
+                int newCount = 0;
+
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    foreach (SelectedObject obj in ss)
+                    {
+                        Entity ent = tr.GetObject(obj.ObjectId, OpenMode.ForRead) as Entity;
+                        if (ent == null) continue;
+
+                        string handle = ent.Handle.ToString();
+                        if (surface.BoundaryGeometry.Any(g => g.Handle == handle))
+                            continue;
+
+                        GeometryReference geoRef = new GeometryReference
+                        {
+                            Handle = handle,
+                            SourceDwgPath = db.Filename ?? "Unsaved Drawing",
+                            SourceDwgName = string.IsNullOrEmpty(db.Filename) ? "Unsaved" : System.IO.Path.GetFileName(db.Filename),
+                            Layer = ent.Layer,
+                            EntityType = ent.GetRXClass().Name,
+                            CurrentObjectId = obj.ObjectId
+                        };
+
+                        if (ent is Polyline pl)
+                            geoRef.VertexCount = pl.NumberOfVertices;
+                        else if (ent is Line)
+                            geoRef.VertexCount = 2;
+
+                        surface.BoundaryGeometry.Add(geoRef);
+                        newCount++;
+                    }
+                    tr.Commit();
+                }
+
+                MessageBox.Show($"Đã thêm {newCount} đường biên vào danh sách.\nTổng: {surface.BoundaryGeometry.Count} boundary lines", 
+                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>
         /// Resolve GeometryReferences to ObjectIds in the current drawing
         /// </summary>
         public void ResolveCurrentDrawingReferences(SurfaceData surface)
@@ -108,17 +174,15 @@ namespace MyMiningPlugin.Services
 
                 using (Transaction tr = db.TransactionManager.StartTransaction())
                 {
-                    foreach (var geoRef in surface.SelectedGeometry)
+                    foreach (var geoRef in surface.SelectedGeometry.Concat(surface.BoundaryGeometry))
                     {
                         try
                         {
                             long handleValue = Convert.ToInt64(geoRef.Handle, 16);
                             Handle handle = new Handle(handleValue);
                             
-                            // Try to get object ID from handle
-                            ObjectId id = db.GetObjectId(false, handle, 0);
-                            
-                            if (!id.IsNull && id.IsValid)
+                            // Use TryGetObjectId to prevent massive performance hits from exceptions
+                            if (db.TryGetObjectId(handle, out ObjectId id) && !id.IsNull && id.IsValid)
                             {
                                 // Verify the object actually exists and can be opened
                                 Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
