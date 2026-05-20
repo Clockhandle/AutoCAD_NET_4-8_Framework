@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shared MSBuild properties for all developers.
+  Each developer sets their own AutoCAD path in 'AutoCADPath.props.user'
+  That file is gitignored and never committed.
+-->
+<Project>
+
+  <!-- Load the local user override if it exists -->
+  <Import Project="AutoCADPath.props.user" Condition="Exists('AutoCADPath.props.user')" />
+
+  <!-- Fallback: common default install paths if no user override is present -->
+  <PropertyGroup>
+    <AutoCADDir Condition="'$(AutoCADDir)' == '' And Exists('C:\Program Files\Autodesk\AutoCAD 2022')">C:\Program Files\Autodesk\AutoCAD 2022</AutoCADDir>
+    <AutoCADDir Condition="'$(AutoCADDir)' == '' And Exists('C:\Program Files\Autodesk\AutoCAD 2023')">C:\Program Files\Autodesk\AutoCAD 2023</AutoCADDir>
+    <AutoCADDir Condition="'$(AutoCADDir)' == '' And Exists('C:\Program Files\Autodesk\AutoCAD 2024')">C:\Program Files\Autodesk\AutoCAD 2024</AutoCADDir>
+    <AutoCADDir Condition="'$(AutoCADDir)' == '' And Exists('C:\Program Files\Autodesk\AutoCAD 2025')">C:\Program Files\Autodesk\AutoCAD 2025</AutoCADDir>
+  </PropertyGroup>
+
+  <Target Name="CheckAutoCADDir" BeforeTargets="BeforeBuild">
+    <Error
+      Condition="'$(AutoCADDir)' == ''"
+      Text="AutoCAD installation not found. Copy 'AutoCADPath.props.user.template' to 'AutoCADPath.props.user' and set your AutoCAD path." />
+  </Target>
+
+</Project>

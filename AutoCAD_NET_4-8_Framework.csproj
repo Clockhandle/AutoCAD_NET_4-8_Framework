@@ -184,8 +184,10 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="AutoCADPath.props.user.template" />
     <None Include="CRITICAL_FIX_SUMMARY.md" />
     <None Include="DEBUGGING_GUIDE.md" />
+    <None Include="Directory.Build.props" />
     <None Include="EXPORT_BUG_FIX.md" />
     <None Include="EXPORT_DEBUGGING_GUIDE.md" />
     <None Include="EXPORT_FIX_EXPLANATION.md" />

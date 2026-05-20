@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  TEMPLATE — copy this file to 'AutoCADPath.props.user' and set your path.
+  'AutoCADPath.props.user' is gitignored so it never gets committed.
+-->
+<Project>
+  <PropertyGroup>
+    <!-- Set this to the folder where acmgd.dll, acdbmgd.dll, accoremgd.dll live -->
+    <AutoCADDir>C:\Program Files\Autodesk\AutoCAD 2022</AutoCADDir>
+  </PropertyGroup>
+</Project>
