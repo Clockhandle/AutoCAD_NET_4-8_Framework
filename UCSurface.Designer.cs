@@ -35,6 +35,9 @@
             this.btnAddBoundaryLine = new System.Windows.Forms.Button();
             this.listBoundaryLineId = new System.Windows.Forms.ListBox();
             this.btnDeleteBoundaryLines = new System.Windows.Forms.Button();
+            this.btnDeleteGapingBound = new System.Windows.Forms.Button();
+            this.listGapingBoundId = new System.Windows.Forms.ListBox();
+            this.btnAddGapingBound = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnDeleteSurfaceLines
@@ -103,10 +106,39 @@
             this.btnDeleteBoundaryLines.UseVisualStyleBackColor = true;
             this.btnDeleteBoundaryLines.Click += new System.EventHandler(this.btnDeleteBoundaryLines_Click);
             // 
+            // btnDeleteGapingBound
+            // 
+            this.btnDeleteGapingBound.Location = new System.Drawing.Point(166, 384);
+            this.btnDeleteGapingBound.Name = "btnDeleteGapingBound";
+            this.btnDeleteGapingBound.Size = new System.Drawing.Size(116, 36);
+            this.btnDeleteGapingBound.TabIndex = 18;
+            this.btnDeleteGapingBound.Text = "Xóa đường hố";
+            this.btnDeleteGapingBound.UseVisualStyleBackColor = true;
+            // 
+            // listGapingBoundId
+            // 
+            this.listGapingBoundId.FormattingEnabled = true;
+            this.listGapingBoundId.Location = new System.Drawing.Point(44, 335);
+            this.listGapingBoundId.Name = "listGapingBoundId";
+            this.listGapingBoundId.Size = new System.Drawing.Size(423, 43);
+            this.listGapingBoundId.TabIndex = 17;
+            // 
+            // btnAddGapingBound
+            // 
+            this.btnAddGapingBound.Location = new System.Drawing.Point(44, 384);
+            this.btnAddGapingBound.Name = "btnAddGapingBound";
+            this.btnAddGapingBound.Size = new System.Drawing.Size(116, 34);
+            this.btnAddGapingBound.TabIndex = 16;
+            this.btnAddGapingBound.Text = "Chọn đường hố";
+            this.btnAddGapingBound.UseVisualStyleBackColor = true;
+            // 
             // UCSurface
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.Controls.Add(this.btnDeleteGapingBound);
+            this.Controls.Add(this.listGapingBoundId);
+            this.Controls.Add(this.btnAddGapingBound);
             this.Controls.Add(this.btnDeleteBoundaryLines);
             this.Controls.Add(this.listBoundaryLineId);
             this.Controls.Add(this.btnAddBoundaryLine);
@@ -129,5 +161,8 @@
         private System.Windows.Forms.Button btnAddBoundaryLine;
         private System.Windows.Forms.ListBox listBoundaryLineId;
         private System.Windows.Forms.Button btnDeleteBoundaryLines;
+        private System.Windows.Forms.Button btnDeleteGapingBound;
+        private System.Windows.Forms.ListBox listGapingBoundId;
+        private System.Windows.Forms.Button btnAddGapingBound;
     }
 }

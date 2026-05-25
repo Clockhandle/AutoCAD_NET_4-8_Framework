@@ -217,6 +217,15 @@ namespace MyMiningPlugin.Services
                     g.Layer,
                     g.EntityType,
                     g.VertexCount
+                }).ToList(),
+                HoleGeometry = surface.HoleGeometry.Select(g => new
+                {
+                    g.Handle,
+                    g.SourceDwgPath,
+                    g.SourceDwgName,
+                    g.Layer,
+                    g.EntityType,
+                    g.VertexCount
                 }).ToList()
             };
         }
@@ -233,6 +242,11 @@ namespace MyMiningPlugin.Services
             if (surfaceData.BoundaryGeometry != null)
             {
                 surface.BoundaryGeometry = DeserializeGeometryReferences(surfaceData.BoundaryGeometry);
+            }
+
+            if (surfaceData.HoleGeometry != null)
+            {
+                surface.HoleGeometry = DeserializeGeometryReferences(surfaceData.HoleGeometry);
             }
 
             return surface;

@@ -52,5 +52,6 @@ namespace AutoCAD_NET_4_8_Framework
         public List<double[]> FlattenedVertices { get; set; } = new List<double[]>(); //flatten all curves to vertices
         
         public bool IsBoundary { get; set; } // Identifies if this acts as a boundary line
+        public bool IsHole { get; set; }     // Identifies if this acts as an interior hole
     }
 }

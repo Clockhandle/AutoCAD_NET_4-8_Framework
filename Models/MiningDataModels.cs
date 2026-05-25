@@ -20,10 +20,12 @@ namespace MyMiningPlugin.Models
 
     public class SurfaceData
     {
-        public string Type { get; set; } // "Vách", "Tr?", or "??t gãy"
-        public string ParentName { get; set; } // For context (e.g., "V?a 8 - Kh?i 1")
+        public string Type { get; set; } // "Vach", "Tru", or "Dut gay"
+        public string ParentName { get; set; } // For context (e.g., "Via 8 - Khoi 1")
         public List<GeometryReference> SelectedGeometry { get; set; } = new List<GeometryReference>();
         public List<GeometryReference> BoundaryGeometry { get; set; } = new List<GeometryReference>();
+        // Hole polygons: closed polylines that punch a void through the mesh interior
+        public List<GeometryReference> HoleGeometry { get; set; } = new List<GeometryReference>();
     }
 
     // Persistent reference to CAD geometry across different drawings
@@ -39,6 +41,21 @@ namespace MyMiningPlugin.Models
         // Runtime property: resolved ObjectId (null if not in current drawing)
         [JsonIgnore]
         public ObjectId? CurrentObjectId { get; set; }
+    }
+
+    public class PointData
+    {
+        public string Handle { get; set; }
+        public string Layer { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Z { get; set; }
+    }
+
+    public class BeMatData
+    {
+        public string Name { get; set; }
+        public List<PointData> Points { get; set; } = new List<PointData>();
     }
 
     public class FaultData
@@ -85,6 +102,7 @@ namespace MyMiningPlugin.Models
     public class MiningProject
     {
         public List<ViaData> Vias { get; set; } = new List<ViaData>();
+        public List<BeMatData> BeMats { get; set; } = new List<BeMatData>();
         public List<FaultData> Faults { get; set; } = new List<FaultData>();
         public List<RockData> Rocks { get; set; } = new List<RockData>();
         public List<BoreholeData> Boreholes { get; set; } = new List<BoreholeData>();

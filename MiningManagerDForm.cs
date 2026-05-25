@@ -24,6 +24,8 @@ namespace AutoCAD_NET_4_8_Framework
         private PersistenceService _persistenceService;
         private ExportService _exportService;
 
+        private TextBox txtServerUrl;
+
         public MiningManagerDForm()
         {
             _selectionService = new AutoCADSelectionService();
@@ -43,6 +45,23 @@ namespace AutoCAD_NET_4_8_Framework
                 _project = loadedProject;
             }
             RebuildTreeView();
+
+            Label lblServerUrl = new Label
+            {
+                Text = "Server URL:",
+                Location = new Point(20, 405),
+                AutoSize = true
+            };
+            this.Controls.Add(lblServerUrl);
+
+            txtServerUrl = new TextBox
+            {
+                Location = new Point(20, 425),
+                Size = new Size(390, 25),
+                Text = "http://mica.edu.vn:55322/"
+            };
+            this.Controls.Add(txtServerUrl);
+            this.Size = new Size(450, 530);
         }
 
         private void TreeView_AfterSelect(object sender, TreeViewEventArgs e)
@@ -51,7 +70,7 @@ namespace AutoCAD_NET_4_8_Framework
             
             string nodeTag = e.Node.Tag as string;
 
-            if (nodeTag == "RootVias" || nodeTag == "RootFaults" || nodeTag == "RootRocks" || nodeTag == "RootBoreholes")
+            if (nodeTag == "RootVias" || nodeTag == "RootFaults" || nodeTag == "RootRocks" || nodeTag == "RootBoreholes" || nodeTag == "RootBeMats")
             {
                 // 1. Create the instance of the UserControl
                 UCRootCategory rootUc = new UCRootCategory { Dock = DockStyle.Fill };
@@ -66,6 +85,18 @@ namespace AutoCAD_NET_4_8_Framework
                             onAddNew: () => AddNewVia(),
                             onSendToServer: () => ShowSendMultipleDialog("Vỉa"),
                             onExportJson: () => ShowExportMultipleDialog("Vỉa"),
+                            onSaveProject: () => SaveProjectData(),
+                            onLoadProject: () => LoadProjectData()
+                        );
+                        break;
+
+                    case "RootBeMats":
+                        rootUc.LoadData(
+                            title: "Quản lý Bề mặt",
+                            addBtnText: "+ Thêm Bề mặt Mới",
+                            onAddNew: () => AddNewBeMat(),
+                            onSendToServer: () => ShowSendMultipleDialog("Bề mặt"),
+                            onExportJson: () => ShowExportMultipleDialog("Bề mặt"),
                             onSaveProject: () => SaveProjectData(),
                             onLoadProject: () => LoadProjectData()
                         );
@@ -124,7 +155,13 @@ namespace AutoCAD_NET_4_8_Framework
             {
                 UCKhoi ucKhoi = new UCKhoi { Dock = DockStyle.Fill };
                 ucKhoi.LoadData(khoi,
-                    onDeleteKhoi: () => { e.Node.Remove(); rightPanel.Controls.Clear(); }
+                    onDeleteKhoi: () =>
+                    {
+                        ViaData parentVia = e.Node.Parent?.Tag as ViaData;
+                        parentVia?.Blocks.Remove(khoi);
+                        e.Node.Remove();
+                        rightPanel.Controls.Clear();
+                    }
                 );
                 rightPanel.Controls.Add(ucKhoi);
             }
@@ -155,6 +192,31 @@ namespace AutoCAD_NET_4_8_Framework
                 );
                 rightPanel.Controls.Add(ucBorehole);
             }
+            else if (e.Node.Tag is BeMatData bemat)
+            {
+                UCBeMat ucBeMat = new UCBeMat { Dock = DockStyle.Fill };
+                ucBeMat.LoadData(bemat,
+                    onSelectPoints: () =>
+                    {
+                        this.Hide();
+                        _selectionService.SelectPointsFromAutoCAD(bemat);
+                        this.Show();
+                        TreeView_AfterSelect(sender, e);
+                    },
+                    onClearPoints: () =>
+                    {
+                        bemat.Points.Clear();
+                        TreeView_AfterSelect(sender, e);
+                    },
+                    onDelete: () =>
+                    {
+                        e.Node.Remove();
+                        _project.BeMats.Remove(bemat);
+                        rightPanel.Controls.Clear();
+                    }
+                );
+                rightPanel.Controls.Add(ucBeMat);
+            }
             else if (e.Node.Tag is FaultData fault)
             {
                 UCSurface ucSurface = new UCSurface { Dock = DockStyle.Fill };
@@ -184,21 +246,31 @@ namespace AutoCAD_NET_4_8_Framework
                     this.Hide();
                     _selectionService.SelectLinesFromAutoCAD(surface);
                     this.Show();
-                    TreeView_AfterSelect(null, new TreeViewEventArgs(node)); // Refresh the node to update UI counts
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node));
                 },
                 onClearSurfaceLines: () => {
                     surface.SelectedGeometry.Clear();
-                    TreeView_AfterSelect(null, new TreeViewEventArgs(node)); // Refresh
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node));
                 },
                 onClearBoundaryLines: () => {
                     if (surface.BoundaryGeometry != null) surface.BoundaryGeometry.Clear();
-                    TreeView_AfterSelect(null, new TreeViewEventArgs(node)); // Refresh
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node));
                 },
                 onSelectBorderlines: () => {
                     this.Hide();
                     _selectionService.SelectBorderlinesFromAutoCAD(surface);
                     this.Show();
-                    TreeView_AfterSelect(null, new TreeViewEventArgs(node)); // Refresh
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node));
+                },
+                onSelectHoles: () => {
+                    this.Hide();
+                    _selectionService.SelectHolesFromAutoCAD(surface);
+                    this.Show();
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node));
+                },
+                onClearHoleLines: () => {
+                    if (surface.HoleGeometry != null) surface.HoleGeometry.Clear();
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node));
                 }
             );
         }
@@ -258,6 +330,32 @@ namespace AutoCAD_NET_4_8_Framework
             blockNode.Nodes.Add(truNode);
             viaNode.Nodes.Add(blockNode);
             viaNode.Expand();
+        }
+
+        private void AddNewBeMat()
+        {
+            string bematName = $"Bề mặt {_project.BeMats.Count + 1}";
+            BeMatData newBeMat = new BeMatData
+            {
+                Name = bematName
+            };
+            _project.BeMats.Add(newBeMat);
+
+            TreeNode node = new TreeNode(bematName);
+            node.Tag = newBeMat;
+
+            if (treeView != null)
+            {
+                foreach (TreeNode n in treeView.Nodes)
+                {
+                    if (n.Tag as string == "RootBeMats")
+                    {
+                        n.Nodes.Add(node);
+                        n.Expand();
+                        break;
+                    }
+                }
+            }
         }
 
         private void AddNewFault()
@@ -364,10 +462,10 @@ namespace AutoCAD_NET_4_8_Framework
                 return;
             }
 
-            var dialog = new SendMultipleDataDialog($"Chọn {category} để gửi", items, category);
+            var dialog = new SendMultipleDataDialog($"Chọn {category} để gửi", items, category, GetCurrentDrawingName());
             if (dialog.ShowDialog() == DialogResult.OK)
             {
-                SendMultipleToServer(category, dialog.SelectedItems, dialog.MapName, dialog.ServerIP, dialog.ServerPort);
+                SendMultipleToServer(category, dialog.SelectedItems, dialog.MapName, dialog.ServerUrl);
             }
         }
 
@@ -380,11 +478,23 @@ namespace AutoCAD_NET_4_8_Framework
                 return;
             }
 
-            var dialog = new ExportMultipleDataDialog($"Chọn {category} để export", items, category);
+            var dialog = new ExportMultipleDataDialog($"Chọn {category} để export", items, category, GetCurrentDrawingName());
             if (dialog.ShowDialog() == DialogResult.OK)
             {
                 ExportMultipleToFile(category, dialog.SelectedItems, dialog.MapName);
             }
+        }
+
+        private string GetCurrentDrawingName()
+        {
+            try
+            {
+                var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                if (doc != null && !string.IsNullOrEmpty(doc.Database.Filename))
+                    return System.IO.Path.GetFileNameWithoutExtension(doc.Database.Filename);
+            }
+            catch { }
+            return string.Empty;
         }
 
         private List<string> GetItemsByCategory(string category)
@@ -392,6 +502,7 @@ namespace AutoCAD_NET_4_8_Framework
             switch (category)
             {
                 case "Vỉa": return _project.Vias.Select(v => v.Name).ToList();
+                case "Bề mặt": return _project.BeMats.Select(b => b.Name).ToList();
                 case "Đứt gãy": return _project.Faults.Select(f => f.Name).ToList();
                 case "Nham thạch": return _project.Rocks.Select(r => r.Name).ToList();
                 case "Lỗ khoan": return _project.Boreholes.Select(b => b.Name).ToList();
@@ -399,11 +510,13 @@ namespace AutoCAD_NET_4_8_Framework
             }
         }
 
-        private async void SendMultipleToServer(string category, List<string> selectedNames, string mapName, string ip, string port)
+        private async void SendMultipleToServer(string category, List<string> selectedNames, string mapName, string serverUrl)
         {
             try
             {
-                await _exportService.SendToServer(category, selectedNames, mapName, ip, port, _project, this);
+                serverUrl = txtServerUrl.Text.Trim();
+                string url = serverUrl.TrimEnd('/') + "/api/cad-data";
+                await _exportService.SendToServer(category, selectedNames, mapName, url, _project, this);
             }
             catch (Exception ex)
             {
@@ -431,6 +544,10 @@ namespace AutoCAD_NET_4_8_Framework
             TreeNode rootVias = new TreeNode("Danh sách Vỉa");
             rootVias.Tag = "RootVias";
             treeView.Nodes.Add(rootVias);
+
+            TreeNode rootBeMats = new TreeNode("Danh sách Bề mặt");
+            rootBeMats.Tag = "RootBeMats";
+            treeView.Nodes.Add(rootBeMats);
 
             TreeNode rootFaults = new TreeNode("Danh sách Đứt gãy");
             rootFaults.Tag = "RootFaults";
@@ -465,6 +582,13 @@ namespace AutoCAD_NET_4_8_Framework
                     blockNode.Nodes.Add(truNode);
                     viaNode.Nodes.Add(blockNode);
                 }
+            }
+
+            foreach (var bemat in _project.BeMats)
+            {
+                TreeNode node = new TreeNode(bemat.Name);
+                node.Tag = bemat;
+                rootBeMats.Nodes.Add(node);
             }
 
             foreach (var fault in _project.Faults)

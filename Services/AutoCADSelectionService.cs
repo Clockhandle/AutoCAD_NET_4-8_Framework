@@ -153,6 +153,132 @@ namespace MyMiningPlugin.Services
         }
 
         /// <summary>
+        /// Select hole polylines from AutoCAD and add to surface HoleGeometry
+        /// </summary>
+        public void SelectHolesFromAutoCAD(SurfaceData surface)
+        {
+            Document doc = AcApp.DocumentManager.MdiActiveDocument;
+            if (doc == null)
+            {
+                MessageBox.Show("No active AutoCAD document.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            SelectionFilter filter = new SelectionFilter(new TypedValue[] {
+                new TypedValue((int)DxfCode.Start, "LWPOLYLINE,POLYLINE,LINE")
+            });
+
+            PromptSelectionOptions opts = new PromptSelectionOptions();
+            opts.MessageForAdding = $"\nChọn các đường hố (hole) cho {surface.Type}: ";
+
+            PromptSelectionResult res = ed.GetSelection(opts, filter);
+
+            if (res.Status == PromptStatus.OK)
+            {
+                SelectionSet ss = res.Value;
+                int newCount = 0;
+
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    foreach (SelectedObject obj in ss)
+                    {
+                        Entity ent = tr.GetObject(obj.ObjectId, OpenMode.ForRead) as Entity;
+                        if (ent == null) continue;
+
+                        string handle = ent.Handle.ToString();
+                        if (surface.HoleGeometry.Any(g => g.Handle == handle))
+                            continue;
+
+                        GeometryReference geoRef = new GeometryReference
+                        {
+                            Handle = handle,
+                            SourceDwgPath = db.Filename ?? "Unsaved Drawing",
+                            SourceDwgName = string.IsNullOrEmpty(db.Filename) ? "Unsaved" : System.IO.Path.GetFileName(db.Filename),
+                            Layer = ent.Layer,
+                            EntityType = ent.GetRXClass().Name,
+                            CurrentObjectId = obj.ObjectId
+                        };
+
+                        if (ent is Polyline pl)
+                            geoRef.VertexCount = pl.NumberOfVertices;
+                        else if (ent is Line)
+                            geoRef.VertexCount = 2;
+
+                        surface.HoleGeometry.Add(geoRef);
+                        newCount++;
+                    }
+                    tr.Commit();
+                }
+
+                MessageBox.Show($"Đã thêm {newCount} đường hố vào danh sách.\nTổng: {surface.HoleGeometry.Count} hole lines",
+                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>
+        /// Select Point entities from AutoCAD and store as PointData in BeMatData
+        /// </summary>
+        public void SelectPointsFromAutoCAD(BeMatData bemat)
+        {
+            Document doc = AcApp.DocumentManager.MdiActiveDocument;
+            if (doc == null)
+            {
+                MessageBox.Show("No active AutoCAD document.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            SelectionFilter filter = new SelectionFilter(new TypedValue[] {
+                new TypedValue((int)DxfCode.Start, "POINT")
+            });
+
+            PromptSelectionOptions opts = new PromptSelectionOptions();
+            opts.MessageForAdding = $"\nChọn các điểm (Point) cho {bemat.Name}: ";
+
+            PromptSelectionResult res = ed.GetSelection(opts, filter);
+
+            if (res.Status == PromptStatus.OK)
+            {
+                int newCount = 0;
+
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    foreach (SelectedObject obj in res.Value)
+                    {
+                        Entity ent = tr.GetObject(obj.ObjectId, OpenMode.ForRead) as Entity;
+                        if (ent == null) continue;
+
+                        string handle = ent.Handle.ToString();
+                        if (bemat.Points.Any(p => p.Handle == handle))
+                            continue;
+
+                        DBPoint pt = ent as DBPoint;
+                        if (pt == null) continue;
+
+                        bemat.Points.Add(new PointData
+                        {
+                            Handle = handle,
+                            Layer = ent.Layer,
+                            X = pt.Position.X,
+                            Y = pt.Position.Y,
+                            Z = pt.Position.Z
+                        });
+                        newCount++;
+                    }
+                    tr.Commit();
+                }
+
+                MessageBox.Show($"Đã thêm {newCount} điểm vào danh sách.\nTổng: {bemat.Points.Count} điểm",
+                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>
         /// Resolve GeometryReferences to ObjectIds in the current drawing
         /// </summary>
         public void ResolveCurrentDrawingReferences(SurfaceData surface)
@@ -174,7 +300,7 @@ namespace MyMiningPlugin.Services
 
                 using (Transaction tr = db.TransactionManager.StartTransaction())
                 {
-                    foreach (var geoRef in surface.SelectedGeometry.Concat(surface.BoundaryGeometry))
+                foreach (var geoRef in surface.SelectedGeometry.Concat(surface.BoundaryGeometry).Concat(surface.HoleGeometry))
                     {
                         try
                         {

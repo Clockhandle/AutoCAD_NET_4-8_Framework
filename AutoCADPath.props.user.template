@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  TEMPLATE — copy this file to 'AutoCADPath.props.user' and set your path.
+  TEMPLATE ï¿½ copy this file to 'AutoCADPath.props.user' and set your path.
   'AutoCADPath.props.user' is gitignored so it never gets committed.
 -->
 <Project>

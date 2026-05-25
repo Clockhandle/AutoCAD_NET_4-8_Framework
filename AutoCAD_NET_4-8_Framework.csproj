@@ -93,6 +93,12 @@
     <Compile Include="MiningManagerDForm.Designer.cs">
       <DependentUpon>MiningManagerDForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="UCBeMat.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCBeMat.Designer.cs">
+      <DependentUpon>UCBeMat.cs</DependentUpon>
+    </Compile>
     <Compile Include="UCBoreholes.cs">
       <SubType>UserControl</SubType>
     </Compile>

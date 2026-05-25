@@ -44,8 +44,9 @@ namespace MyMiningPlugin.Services
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
                 // Iterate through both, while keeping track of which list they come from
-                var combinedList = surface.SelectedGeometry.Select(g => new { GeoRef = g, IsBoundary = false })
-                    .Concat(surface.BoundaryGeometry.Select(g => new { GeoRef = g, IsBoundary = true }));
+                var combinedList = surface.SelectedGeometry.Select(g => new { GeoRef = g, IsBoundary = false, IsHole = false })
+                    .Concat(surface.BoundaryGeometry.Select(g => new { GeoRef = g, IsBoundary = true, IsHole = false }))
+                    .Concat(surface.HoleGeometry.Select(g => new { GeoRef = g, IsBoundary = false, IsHole = true }));
 
                 foreach (var item in combinedList)
                 {
@@ -74,6 +75,7 @@ namespace MyMiningPlugin.Services
                             Layer = ent.Layer,
                             Handle = ent.Handle.ToString(),
                             IsBoundary = item.IsBoundary,
+                            IsHole = item.IsHole,
                             Vertices = new List<double[]>(),
                             FlattenedVertices = new List<double[]>()
                         };

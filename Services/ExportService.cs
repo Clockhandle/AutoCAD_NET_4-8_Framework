@@ -52,6 +52,10 @@ namespace MyMiningPlugin.Services
                 case "Lỗ khoan":
                     await ProcessBoreholes(project.Boreholes, selectedNames, mapName, flattenedItems);
                     break;
+
+                case "Bề mặt":
+                    await ProcessBeMats(project.BeMats, selectedNames, mapName, flattenedItems);
+                    break;
             }
 
             return JsonConvert.SerializeObject(flattenedItems, Formatting.Indented);
@@ -148,6 +152,21 @@ namespace MyMiningPlugin.Services
                             }
                         }
                         break;
+
+                    case "Bề mặt":
+                        debugDetails += $"Số Bề mặt trong project: {project.BeMats.Count}\n";
+                        foreach (var name in selectedNames)
+                        {
+                            var bemat = project.BeMats.FirstOrDefault(b => b.Name == name);
+                            if (bemat != null)
+                            {
+                                int count = bemat.Points.Count;
+                                debugDetails += $"- Bề mặt '{bemat.Name}': {count} điểm\n";
+                                totalGeometryCount += count;
+                                resolvedGeometryCount += count;
+                            }
+                        }
+                        break;
                 }
 
                 string json = await GenerateCombinedJsonPayload(category, selectedNames, mapName, project);
@@ -205,15 +224,15 @@ namespace MyMiningPlugin.Services
         /// Send JSON to server
         /// </summary>
         public async Task SendToServer(
-            string category, 
-            List<string> selectedNames, 
-            string mapName, 
-            string ip, 
-            string port,
+            string category,
+            List<string> selectedNames,
+            string mapName,
+            string serverUrl,
             MiningProject project,
             Form parentForm)
         {
-            string url = $"http://{ip}:{port}/api/cad-data";
+            string baseUrl = serverUrl.TrimEnd('/');
+            string url = $"{baseUrl}/api/cad-data";
 
             try
             {
@@ -360,6 +379,26 @@ namespace MyMiningPlugin.Services
             }
         }
 
+        private Task ProcessBeMats(List<BeMatData> bemats, List<string> selectedNames, string mapName, List<object> flattenedItems)
+        {
+            foreach (var name in selectedNames)
+            {
+                var bemat = bemats.FirstOrDefault(b => b.Name == name);
+                if (bemat != null && bemat.Points.Count > 0)
+                {
+                    flattenedItems.Add(new
+                    {
+                        MapName = mapName,
+                        Name = bemat.Name,
+                        Type = "Bề mặt",
+                        PointCount = bemat.Points.Count,
+                        Points = bemat.Points
+                    });
+                }
+            }
+            return Task.FromResult(0);
+        }
+
         private object CreateGeometryItem(CADObjectData geo, string mapName, string name, string blockName, string type)
         {
             var item = new
@@ -374,6 +413,7 @@ namespace MyMiningPlugin.Services
                 Type = type,
                 IsClosed = geo.IsClosed,
                 IsBoundary = geo.IsBoundary,
+                IsHole = geo.IsHole,
                 VertexCount = geo.FlattenedVertices.Count,
                 FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList()
             };
@@ -394,6 +434,7 @@ namespace MyMiningPlugin.Services
                     item.Type,
                     item.IsClosed,
                     item.IsBoundary,
+                    item.IsHole,
                     item.VertexCount,
                     item.FlattenedVertices
                 };
@@ -439,6 +480,13 @@ namespace MyMiningPlugin.Services
                     {
                         var borehole = project.Boreholes.FirstOrDefault(b => b.Name == name);
                         if (borehole != null) lineCount += borehole.Trajectory.Count; // sum the trajectory points
+                    }
+                    break;
+                case "Bề mặt":
+                    foreach (var name in selectedNames)
+                    {
+                        var bemat = project.BeMats.FirstOrDefault(b => b.Name == name);
+                        if (bemat != null) lineCount += bemat.Points.Count;
                     }
                     break;
             }
@@ -495,6 +543,16 @@ namespace MyMiningPlugin.Services
                         if (borehole != null)
                         {
                             // Excel-based boreholes do not need to resolve AutoCAD geometry
+                        }
+                    }
+                    break;
+                case "Bề mặt":
+                    foreach (var name in selectedNames)
+                    {
+                        var bemat = project.BeMats.FirstOrDefault(b => b.Name == name);
+                        if (bemat != null)
+                        {
+                            // Point positions are stored directly at selection time, no resolve needed
                         }
                     }
                     break;
