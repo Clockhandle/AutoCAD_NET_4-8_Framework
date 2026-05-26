@@ -219,9 +219,9 @@ namespace MyMiningPlugin.Services
         }
 
         /// <summary>
-        /// Select Point entities from AutoCAD and store as PointData in BeMatData
+        /// Select Point entities from AutoCAD for Bề mặt surface data
         /// </summary>
-        public void SelectPointsFromAutoCAD(BeMatData bemat)
+        public void SelectPointsFromAutoCAD(SurfaceData surface)
         {
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
             if (doc == null)
@@ -238,7 +238,7 @@ namespace MyMiningPlugin.Services
             });
 
             PromptSelectionOptions opts = new PromptSelectionOptions();
-            opts.MessageForAdding = $"\nChọn các điểm (Point) cho {bemat.Name}: ";
+            opts.MessageForAdding = $"\nChọn các điểm cho {surface.ParentName}: ";
 
             PromptSelectionResult res = ed.GetSelection(opts, filter);
 
@@ -254,26 +254,92 @@ namespace MyMiningPlugin.Services
                         if (ent == null) continue;
 
                         string handle = ent.Handle.ToString();
-                        if (bemat.Points.Any(p => p.Handle == handle))
+                        if (surface.SelectedGeometry.Any(g => g.Handle == handle))
                             continue;
 
-                        DBPoint pt = ent as DBPoint;
-                        if (pt == null) continue;
-
-                        bemat.Points.Add(new PointData
+                        GeometryReference geoRef = new GeometryReference
                         {
                             Handle = handle,
+                            SourceDwgPath = db.Filename ?? "Unsaved Drawing",
+                            SourceDwgName = string.IsNullOrEmpty(db.Filename) ? "Unsaved" : System.IO.Path.GetFileName(db.Filename),
                             Layer = ent.Layer,
-                            X = pt.Position.X,
-                            Y = pt.Position.Y,
-                            Z = pt.Position.Z
-                        });
+                            EntityType = "POINT",
+                            VertexCount = 1,
+                            CurrentObjectId = obj.ObjectId
+                        };
+
+                        surface.SelectedGeometry.Add(geoRef);
                         newCount++;
                     }
                     tr.Commit();
                 }
 
-                MessageBox.Show($"Đã thêm {newCount} điểm vào danh sách.\nTổng: {bemat.Points.Count} điểm",
+                MessageBox.Show($"Đã thêm {newCount} điểm vào danh sách.\nTổng: {surface.SelectedGeometry.Count} điểm",
+                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>
+        /// Select breaklines from AutoCAD and add to BreaklineGeometry
+        /// </summary>
+        public void SelectBreakLinesFromAutoCAD(SurfaceData surface)
+        {
+            Document doc = AcApp.DocumentManager.MdiActiveDocument;
+            if (doc == null)
+            {
+                MessageBox.Show("No active AutoCAD document.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            SelectionFilter filter = new SelectionFilter(new TypedValue[] {
+                new TypedValue((int)DxfCode.Start, "LWPOLYLINE,POLYLINE,LINE")
+            });
+
+            PromptSelectionOptions opts = new PromptSelectionOptions();
+            opts.MessageForAdding = $"\nChọn các đường đê (breakline) cho {surface.ParentName}: ";
+
+            PromptSelectionResult res = ed.GetSelection(opts, filter);
+
+            if (res.Status == PromptStatus.OK)
+            {
+                int newCount = 0;
+
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    foreach (SelectedObject obj in res.Value)
+                    {
+                        Entity ent = tr.GetObject(obj.ObjectId, OpenMode.ForRead) as Entity;
+                        if (ent == null) continue;
+
+                        string handle = ent.Handle.ToString();
+                        if (surface.BreaklineGeometry.Any(g => g.Handle == handle))
+                            continue;
+
+                        GeometryReference geoRef = new GeometryReference
+                        {
+                            Handle = handle,
+                            SourceDwgPath = db.Filename ?? "Unsaved Drawing",
+                            SourceDwgName = string.IsNullOrEmpty(db.Filename) ? "Unsaved" : System.IO.Path.GetFileName(db.Filename),
+                            Layer = ent.Layer,
+                            EntityType = ent.GetRXClass().Name,
+                            CurrentObjectId = obj.ObjectId
+                        };
+
+                        if (ent is Polyline pl)
+                            geoRef.VertexCount = pl.NumberOfVertices;
+                        else if (ent is Line)
+                            geoRef.VertexCount = 2;
+
+                        surface.BreaklineGeometry.Add(geoRef);
+                        newCount++;
+                    }
+                    tr.Commit();
+                }
+
+                MessageBox.Show($"Đã thêm {newCount} đường đê vào danh sách.\nTổng: {surface.BreaklineGeometry.Count} breaklines",
                     "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
@@ -300,7 +366,7 @@ namespace MyMiningPlugin.Services
 
                 using (Transaction tr = db.TransactionManager.StartTransaction())
                 {
-                foreach (var geoRef in surface.SelectedGeometry.Concat(surface.BoundaryGeometry).Concat(surface.HoleGeometry))
+                foreach (var geoRef in surface.SelectedGeometry.Concat(surface.BoundaryGeometry).Concat(surface.HoleGeometry).Concat(surface.BreaklineGeometry))
                     {
                         try
                         {

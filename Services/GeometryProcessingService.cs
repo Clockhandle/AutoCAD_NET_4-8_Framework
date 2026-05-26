@@ -44,9 +44,10 @@ namespace MyMiningPlugin.Services
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
                 // Iterate through both, while keeping track of which list they come from
-                var combinedList = surface.SelectedGeometry.Select(g => new { GeoRef = g, IsBoundary = false, IsHole = false })
-                    .Concat(surface.BoundaryGeometry.Select(g => new { GeoRef = g, IsBoundary = true, IsHole = false }))
-                    .Concat(surface.HoleGeometry.Select(g => new { GeoRef = g, IsBoundary = false, IsHole = true }));
+                var combinedList = surface.SelectedGeometry.Select(g => new { GeoRef = g, IsBoundary = false, IsHole = false, IsBreakline = false })
+                    .Concat(surface.BoundaryGeometry.Select(g => new { GeoRef = g, IsBoundary = true, IsHole = false, IsBreakline = false }))
+                    .Concat(surface.HoleGeometry.Select(g => new { GeoRef = g, IsBoundary = false, IsHole = true, IsBreakline = false }))
+                    .Concat(surface.BreaklineGeometry.Select(g => new { GeoRef = g, IsBoundary = false, IsHole = false, IsBreakline = true }));
 
                 foreach (var item in combinedList)
                 {
@@ -76,6 +77,7 @@ namespace MyMiningPlugin.Services
                             Handle = ent.Handle.ToString(),
                             IsBoundary = item.IsBoundary,
                             IsHole = item.IsHole,
+                            IsBreakline = item.IsBreakline,
                             Vertices = new List<double[]>(),
                             FlattenedVertices = new List<double[]>()
                         };
@@ -158,7 +160,12 @@ namespace MyMiningPlugin.Services
         {
             List<Point3d> rawPoints = new List<Point3d>();
 
-            if (ent is Polyline pl)
+            if (ent is DBPoint dbpt)
+            {
+                cadData.IsClosed = false;
+                rawPoints.Add(dbpt.Position);
+            }
+            else if (ent is Polyline pl)
             {
                 cadData.IsClosed = pl.Closed;
                 for (int i = 0; i < pl.NumberOfVertices; i++)

@@ -35,6 +35,11 @@ namespace AutoCAD_NET_4_8_Framework
 
             InitializeComponent();
             
+            this.Text = "Mining Manager";
+            this.MinimumSize = new System.Drawing.Size(800, 600);
+            this.Size = new System.Drawing.Size(1024, 700);
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            
             // Wire up the TreeView selection event
             treeView.AfterSelect += TreeView_AfterSelect;
             
@@ -61,7 +66,6 @@ namespace AutoCAD_NET_4_8_Framework
                 Text = "http://mica.edu.vn:55322/"
             };
             this.Controls.Add(txtServerUrl);
-            this.Size = new Size(450, 530);
         }
 
         private void TreeView_AfterSelect(object sender, TreeViewEventArgs e)
@@ -194,28 +198,9 @@ namespace AutoCAD_NET_4_8_Framework
             }
             else if (e.Node.Tag is BeMatData bemat)
             {
-                UCBeMat ucBeMat = new UCBeMat { Dock = DockStyle.Fill };
-                ucBeMat.LoadData(bemat,
-                    onSelectPoints: () =>
-                    {
-                        this.Hide();
-                        _selectionService.SelectPointsFromAutoCAD(bemat);
-                        this.Show();
-                        TreeView_AfterSelect(sender, e);
-                    },
-                    onClearPoints: () =>
-                    {
-                        bemat.Points.Clear();
-                        TreeView_AfterSelect(sender, e);
-                    },
-                    onDelete: () =>
-                    {
-                        e.Node.Remove();
-                        _project.BeMats.Remove(bemat);
-                        rightPanel.Controls.Clear();
-                    }
-                );
-                rightPanel.Controls.Add(ucBeMat);
+                UCSurface ucSurface = new UCSurface { Dock = DockStyle.Fill };
+                RenderSurfaceLogic(ucSurface, bemat.Surface, e.Node, isDeletable: true, onDelete: () => { e.Node.Remove(); _project.BeMats.Remove(bemat); rightPanel.Controls.Clear(); });
+                rightPanel.Controls.Add(ucSurface);
             }
             else if (e.Node.Tag is FaultData fault)
             {
@@ -240,11 +225,16 @@ namespace AutoCAD_NET_4_8_Framework
         private void RenderSurfaceLogic(UCSurface ucSurface, SurfaceData surface, TreeNode node, bool isDeletable, Action onDelete)
         {
             _selectionService.ResolveCurrentDrawingReferences(surface);
-            
+
+            bool isPointMode = surface.Type == "Bề mặt";
+
             ucSurface.LoadData(surface, isDeletable,
                 onSelectLines: () => {
                     this.Hide();
-                    _selectionService.SelectLinesFromAutoCAD(surface);
+                    if (isPointMode)
+                        _selectionService.SelectPointsFromAutoCAD(surface);
+                    else
+                        _selectionService.SelectLinesFromAutoCAD(surface);
                     this.Show();
                     TreeView_AfterSelect(null, new TreeViewEventArgs(node));
                 },
@@ -256,7 +246,7 @@ namespace AutoCAD_NET_4_8_Framework
                     if (surface.BoundaryGeometry != null) surface.BoundaryGeometry.Clear();
                     TreeView_AfterSelect(null, new TreeViewEventArgs(node));
                 },
-                onSelectBorderlines: () => {
+                onSelectBoundaryLines: () => {
                     this.Hide();
                     _selectionService.SelectBorderlinesFromAutoCAD(surface);
                     this.Show();
@@ -270,6 +260,16 @@ namespace AutoCAD_NET_4_8_Framework
                 },
                 onClearHoleLines: () => {
                     if (surface.HoleGeometry != null) surface.HoleGeometry.Clear();
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node));
+                },
+                onSelectBreakLines: () => {
+                    this.Hide();
+                    _selectionService.SelectBreakLinesFromAutoCAD(surface);
+                    this.Show();
+                    TreeView_AfterSelect(null, new TreeViewEventArgs(node));
+                },
+                onClearBreakLines: () => {
+                    if (surface.BreaklineGeometry != null) surface.BreaklineGeometry.Clear();
                     TreeView_AfterSelect(null, new TreeViewEventArgs(node));
                 }
             );
@@ -337,7 +337,8 @@ namespace AutoCAD_NET_4_8_Framework
             string bematName = $"Bề mặt {_project.BeMats.Count + 1}";
             BeMatData newBeMat = new BeMatData
             {
-                Name = bematName
+                Name = bematName,
+                Surface = new SurfaceData { Type = "Bề mặt", ParentName = bematName }
             };
             _project.BeMats.Add(newBeMat);
 

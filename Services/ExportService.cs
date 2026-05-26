@@ -160,10 +160,11 @@ namespace MyMiningPlugin.Services
                             var bemat = project.BeMats.FirstOrDefault(b => b.Name == name);
                             if (bemat != null)
                             {
-                                int count = bemat.Points.Count;
-                                debugDetails += $"- Bề mặt '{bemat.Name}': {count} điểm\n";
+                                int count = bemat.Surface.SelectedGeometry.Count;
+                                int resolvedCount = bemat.Surface.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                debugDetails += $"- Bề mặt '{bemat.Name}': {count} lines (resolved={resolvedCount})\n";
                                 totalGeometryCount += count;
-                                resolvedGeometryCount += count;
+                                resolvedGeometryCount += resolvedCount;
                             }
                         }
                         break;
@@ -379,24 +380,20 @@ namespace MyMiningPlugin.Services
             }
         }
 
-        private Task ProcessBeMats(List<BeMatData> bemats, List<string> selectedNames, string mapName, List<object> flattenedItems)
+        private async Task ProcessBeMats(List<BeMatData> bemats, List<string> selectedNames, string mapName, List<object> flattenedItems)
         {
             foreach (var name in selectedNames)
             {
                 var bemat = bemats.FirstOrDefault(b => b.Name == name);
-                if (bemat != null && bemat.Points.Count > 0)
+                if (bemat != null && bemat.Surface.SelectedGeometry.Count > 0)
                 {
-                    flattenedItems.Add(new
+                    var geometryList = await _geometryProcessor.ProcessGeometryWithSmartZ(bemat.Surface);
+                    foreach (var geo in geometryList)
                     {
-                        MapName = mapName,
-                        Name = bemat.Name,
-                        Type = "Bề mặt",
-                        PointCount = bemat.Points.Count,
-                        Points = bemat.Points
-                    });
+                        flattenedItems.Add(CreateGeometryItem(geo, mapName, bemat.Name, null, "Bề mặt"));
+                    }
                 }
             }
-            return Task.FromResult(0);
         }
 
         private object CreateGeometryItem(CADObjectData geo, string mapName, string name, string blockName, string type)
@@ -486,7 +483,7 @@ namespace MyMiningPlugin.Services
                     foreach (var name in selectedNames)
                     {
                         var bemat = project.BeMats.FirstOrDefault(b => b.Name == name);
-                        if (bemat != null) lineCount += bemat.Points.Count;
+                        if (bemat != null) lineCount += bemat.Surface.SelectedGeometry.Count + bemat.Surface.BoundaryGeometry.Count;
                     }
                     break;
             }
@@ -552,7 +549,7 @@ namespace MyMiningPlugin.Services
                         var bemat = project.BeMats.FirstOrDefault(b => b.Name == name);
                         if (bemat != null)
                         {
-                            // Point positions are stored directly at selection time, no resolve needed
+                            _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(bemat.Surface);
                         }
                     }
                     break;

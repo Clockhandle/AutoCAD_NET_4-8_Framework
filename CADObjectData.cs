@@ -53,5 +53,6 @@ namespace AutoCAD_NET_4_8_Framework
         
         public bool IsBoundary { get; set; } // Identifies if this acts as a boundary line
         public bool IsHole { get; set; }     // Identifies if this acts as an interior hole
+        public bool IsBreakline { get; set; } // Identifies if this acts as a breakline
     }
 }

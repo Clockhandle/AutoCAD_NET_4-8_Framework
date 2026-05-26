@@ -9,34 +9,45 @@ namespace AutoCAD_NET_4_8_Framework
     {
         private Action _onSelectLines;
         private Action _onClearSurfaceLines;
+        private Action _onSelectBoundaryLines;
         private Action _onClearBoundaryLines;
-        private Action _onSelectBorderlines;
         private Action _onSelectHoles;
         private Action _onClearHoleLines;
+        private Action _onSelectBreakLines;
+        private Action _onClearBreakLines;
 
         public UCSurface()
         {
             InitializeComponent();
-            btnAddGapingBound.Click += new System.EventHandler(BtnAddHole_Click);
-            btnDeleteGapingBound.Click += new System.EventHandler(BtnDeleteHoleLines_Click);
+            btnAddHoleLine.Click += new System.EventHandler(BtnAddHole_Click);
+            btnDeleteHoleLine.Click += new System.EventHandler(BtnDeleteHoleLines_Click);
         }
 
         public void LoadData(SurfaceData surface, bool isDeletable,
             Action onSelectLines,
             Action onClearSurfaceLines,
             Action onClearBoundaryLines,
-            Action onSelectBorderlines = null,
+            Action onSelectBoundaryLines = null,
             Action onSelectHoles = null,
-            Action onClearHoleLines = null)
+            Action onClearHoleLines = null,
+            Action onSelectBreakLines = null,
+            Action onClearBreakLines = null)
         {
             _onSelectLines = onSelectLines;
             _onClearSurfaceLines = onClearSurfaceLines;
             _onClearBoundaryLines = onClearBoundaryLines;
-            _onSelectBorderlines = onSelectBorderlines;
+            _onSelectBoundaryLines = onSelectBoundaryLines;
             _onSelectHoles = onSelectHoles;
             _onClearHoleLines = onClearHoleLines;
+            _onSelectBreakLines = onSelectBreakLines;
+            _onClearBreakLines = onClearBreakLines;
 
-            // Populate the Surface Lines ListBox
+            bool isPointMode = surface.Type == "Bề mặt";
+
+            btnAddLine.Text = isPointMode ? "Chọn thêm điểm" : "Chọn thêm đường";
+            btnDeleteSurfaceLines.Text = isPointMode ? "Xóa điểm" : $"Xóa đường {surface.Type.ToLower()}";
+
+            // Populate the main ListBox
             listBoxIds.BeginUpdate();
             listBoxIds.Items.Clear();
             foreach (var geoRef in surface.SelectedGeometry)
@@ -63,31 +74,57 @@ namespace AutoCAD_NET_4_8_Framework
             }
 
             // Populate the Hole Lines ListBox
-            if (listGapingBoundId != null)
+            if (listHoleLineId != null)
             {
-                listGapingBoundId.BeginUpdate();
-                listGapingBoundId.Items.Clear();
+                listHoleLineId.BeginUpdate();
+                listHoleLineId.Items.Clear();
                 if (surface.HoleGeometry != null)
                 {
                     foreach (var geoRef in surface.HoleGeometry)
                     {
                         bool inCurrentDwg = geoRef.CurrentObjectId.HasValue && !geoRef.CurrentObjectId.Value.IsNull;
-                        listGapingBoundId.Items.Add($"{(inCurrentDwg ? "✓" : "⚠")} [{geoRef.Handle}] {geoRef.Layer}");
+                        listHoleLineId.Items.Add($"{(inCurrentDwg ? "✓" : "⚠")} [{geoRef.Handle}] {geoRef.Layer}");
                     }
                 }
-                listGapingBoundId.EndUpdate();
+                listHoleLineId.EndUpdate();
+            }
+
+            // Populate the Breakline ListBox
+            if (listBreakLineId != null)
+            {
+                listBreakLineId.BeginUpdate();
+                listBreakLineId.Items.Clear();
+                if (surface.BreaklineGeometry != null)
+                {
+                    foreach (var geoRef in surface.BreaklineGeometry)
+                    {
+                        bool inCurrentDwg = geoRef.CurrentObjectId.HasValue && !geoRef.CurrentObjectId.Value.IsNull;
+                        listBreakLineId.Items.Add($"{(inCurrentDwg ? "✓" : "⚠")} [{geoRef.Handle}] {geoRef.Layer}");
+                    }
+                }
+                listBreakLineId.EndUpdate();
             }
 
             int totalCount = surface.SelectedGeometry.Count;
             int currentCount = surface.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-            lblLineData.Text = $"Tổng: {totalCount} lines | Trong DWG này: {currentCount} lines";
+            lblLineData.Text = isPointMode
+                ? $"Tổng: {totalCount} điểm | Trong DWG này: {currentCount} điểm"
+                : $"Tổng: {totalCount} lines | Trong DWG này: {currentCount} lines";
         }
 
         public void BtnSelectLines_Click(object sender, EventArgs e) => _onSelectLines?.Invoke();
         public void btnDeleteSurfaceLines_Click(object sender, EventArgs e) => _onClearSurfaceLines?.Invoke();
         public void btnDeleteBoundaryLines_Click(object sender, EventArgs e) => _onClearBoundaryLines?.Invoke();
-        public void BtnAddBoundaryLine_Click(object sender, EventArgs e) => _onSelectBorderlines?.Invoke();
+        public void BtnAddBoundaryLine_Click(object sender, EventArgs e) => _onSelectBoundaryLines?.Invoke();
         public void BtnAddHole_Click(object sender, EventArgs e) => _onSelectHoles?.Invoke();
         public void BtnDeleteHoleLines_Click(object sender, EventArgs e) => _onClearHoleLines?.Invoke();
+        private void btnAddBreakLine_Click(object sender, EventArgs e) => _onSelectBreakLines?.Invoke();
+        private void btnDeleteBreakLines_Click(object sender, EventArgs e) => _onClearBreakLines?.Invoke();
+
+        private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
     }
 }

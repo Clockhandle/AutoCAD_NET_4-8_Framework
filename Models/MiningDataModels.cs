@@ -20,12 +20,12 @@ namespace MyMiningPlugin.Models
 
     public class SurfaceData
     {
-        public string Type { get; set; } // "Vach", "Tru", or "Dut gay"
-        public string ParentName { get; set; } // For context (e.g., "Via 8 - Khoi 1")
+        public string Type { get; set; }
+        public string ParentName { get; set; }
         public List<GeometryReference> SelectedGeometry { get; set; } = new List<GeometryReference>();
         public List<GeometryReference> BoundaryGeometry { get; set; } = new List<GeometryReference>();
-        // Hole polygons: closed polylines that punch a void through the mesh interior
         public List<GeometryReference> HoleGeometry { get; set; } = new List<GeometryReference>();
+        public List<GeometryReference> BreaklineGeometry { get; set; } = new List<GeometryReference>();
     }
 
     // Persistent reference to CAD geometry across different drawings
@@ -43,19 +43,10 @@ namespace MyMiningPlugin.Models
         public ObjectId? CurrentObjectId { get; set; }
     }
 
-    public class PointData
-    {
-        public string Handle { get; set; }
-        public string Layer { get; set; }
-        public double X { get; set; }
-        public double Y { get; set; }
-        public double Z { get; set; }
-    }
-
     public class BeMatData
     {
         public string Name { get; set; }
-        public List<PointData> Points { get; set; } = new List<PointData>();
+        public SurfaceData Surface { get; set; }
     }
 
     public class FaultData

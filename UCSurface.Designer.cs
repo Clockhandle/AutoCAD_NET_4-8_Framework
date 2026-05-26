@@ -35,9 +35,12 @@
             this.btnAddBoundaryLine = new System.Windows.Forms.Button();
             this.listBoundaryLineId = new System.Windows.Forms.ListBox();
             this.btnDeleteBoundaryLines = new System.Windows.Forms.Button();
-            this.btnDeleteGapingBound = new System.Windows.Forms.Button();
-            this.listGapingBoundId = new System.Windows.Forms.ListBox();
-            this.btnAddGapingBound = new System.Windows.Forms.Button();
+            this.btnDeleteHoleLine = new System.Windows.Forms.Button();
+            this.listHoleLineId = new System.Windows.Forms.ListBox();
+            this.btnAddHoleLine = new System.Windows.Forms.Button();
+            this.btnDeleteBreakLine = new System.Windows.Forms.Button();
+            this.listBreakLineId = new System.Windows.Forms.ListBox();
+            this.btnAddBreakLine = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnDeleteSurfaceLines
@@ -106,39 +109,71 @@
             this.btnDeleteBoundaryLines.UseVisualStyleBackColor = true;
             this.btnDeleteBoundaryLines.Click += new System.EventHandler(this.btnDeleteBoundaryLines_Click);
             // 
-            // btnDeleteGapingBound
+            // btnDeleteHoleLine
             // 
-            this.btnDeleteGapingBound.Location = new System.Drawing.Point(166, 384);
-            this.btnDeleteGapingBound.Name = "btnDeleteGapingBound";
-            this.btnDeleteGapingBound.Size = new System.Drawing.Size(116, 36);
-            this.btnDeleteGapingBound.TabIndex = 18;
-            this.btnDeleteGapingBound.Text = "Xóa đường hố";
-            this.btnDeleteGapingBound.UseVisualStyleBackColor = true;
+            this.btnDeleteHoleLine.Location = new System.Drawing.Point(166, 384);
+            this.btnDeleteHoleLine.Name = "btnDeleteHoleLine";
+            this.btnDeleteHoleLine.Size = new System.Drawing.Size(116, 36);
+            this.btnDeleteHoleLine.TabIndex = 18;
+            this.btnDeleteHoleLine.Text = "Xóa đường hố";
+            this.btnDeleteHoleLine.UseVisualStyleBackColor = true;
             // 
-            // listGapingBoundId
+            // listHoleLineId
             // 
-            this.listGapingBoundId.FormattingEnabled = true;
-            this.listGapingBoundId.Location = new System.Drawing.Point(44, 335);
-            this.listGapingBoundId.Name = "listGapingBoundId";
-            this.listGapingBoundId.Size = new System.Drawing.Size(423, 43);
-            this.listGapingBoundId.TabIndex = 17;
+            this.listHoleLineId.FormattingEnabled = true;
+            this.listHoleLineId.Location = new System.Drawing.Point(44, 335);
+            this.listHoleLineId.Name = "listHoleLineId";
+            this.listHoleLineId.Size = new System.Drawing.Size(423, 43);
+            this.listHoleLineId.TabIndex = 17;
             // 
-            // btnAddGapingBound
+            // btnAddHoleLine
             // 
-            this.btnAddGapingBound.Location = new System.Drawing.Point(44, 384);
-            this.btnAddGapingBound.Name = "btnAddGapingBound";
-            this.btnAddGapingBound.Size = new System.Drawing.Size(116, 34);
-            this.btnAddGapingBound.TabIndex = 16;
-            this.btnAddGapingBound.Text = "Chọn đường hố";
-            this.btnAddGapingBound.UseVisualStyleBackColor = true;
+            this.btnAddHoleLine.Location = new System.Drawing.Point(44, 384);
+            this.btnAddHoleLine.Name = "btnAddHoleLine";
+            this.btnAddHoleLine.Size = new System.Drawing.Size(116, 34);
+            this.btnAddHoleLine.TabIndex = 16;
+            this.btnAddHoleLine.Text = "Chọn đường hố";
+            this.btnAddHoleLine.UseVisualStyleBackColor = true;
+            // 
+            // btnDeleteBreakLine
+            // 
+            this.btnDeleteBreakLine.Location = new System.Drawing.Point(166, 473);
+            this.btnDeleteBreakLine.Name = "btnDeleteBreakLine";
+            this.btnDeleteBreakLine.Size = new System.Drawing.Size(116, 36);
+            this.btnDeleteBreakLine.TabIndex = 21;
+            this.btnDeleteBreakLine.Text = "Xóa đường đê";
+            this.btnDeleteBreakLine.UseVisualStyleBackColor = true;
+            this.btnDeleteBreakLine.Click += new System.EventHandler(this.btnDeleteBreakLines_Click);
+            // 
+            // listBreakLineId
+            // 
+            this.listBreakLineId.FormattingEnabled = true;
+            this.listBreakLineId.Location = new System.Drawing.Point(44, 424);
+            this.listBreakLineId.Name = "listBreakLineId";
+            this.listBreakLineId.Size = new System.Drawing.Size(423, 43);
+            this.listBreakLineId.TabIndex = 20;
+            this.listBreakLineId.SelectedIndexChanged += new System.EventHandler(this.listBox1_SelectedIndexChanged);
+            // 
+            // btnAddBreakLine
+            // 
+            this.btnAddBreakLine.Location = new System.Drawing.Point(44, 473);
+            this.btnAddBreakLine.Name = "btnAddBreakLine";
+            this.btnAddBreakLine.Size = new System.Drawing.Size(116, 34);
+            this.btnAddBreakLine.TabIndex = 19;
+            this.btnAddBreakLine.Text = "Chọn đường đê";
+            this.btnAddBreakLine.UseVisualStyleBackColor = true;
+            this.btnAddBreakLine.Click += new System.EventHandler(this.btnAddBreakLine_Click);
             // 
             // UCSurface
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.btnDeleteGapingBound);
-            this.Controls.Add(this.listGapingBoundId);
-            this.Controls.Add(this.btnAddGapingBound);
+            this.Controls.Add(this.btnDeleteBreakLine);
+            this.Controls.Add(this.listBreakLineId);
+            this.Controls.Add(this.btnAddBreakLine);
+            this.Controls.Add(this.btnDeleteHoleLine);
+            this.Controls.Add(this.listHoleLineId);
+            this.Controls.Add(this.btnAddHoleLine);
             this.Controls.Add(this.btnDeleteBoundaryLines);
             this.Controls.Add(this.listBoundaryLineId);
             this.Controls.Add(this.btnAddBoundaryLine);
@@ -147,7 +182,7 @@
             this.Controls.Add(this.btnAddLine);
             this.Controls.Add(this.lblLineData);
             this.Name = "UCSurface";
-            this.Size = new System.Drawing.Size(616, 461);
+            this.Size = new System.Drawing.Size(616, 534);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -161,8 +196,11 @@
         private System.Windows.Forms.Button btnAddBoundaryLine;
         private System.Windows.Forms.ListBox listBoundaryLineId;
         private System.Windows.Forms.Button btnDeleteBoundaryLines;
-        private System.Windows.Forms.Button btnDeleteGapingBound;
-        private System.Windows.Forms.ListBox listGapingBoundId;
-        private System.Windows.Forms.Button btnAddGapingBound;
+        private System.Windows.Forms.Button btnDeleteHoleLine;
+        private System.Windows.Forms.ListBox listHoleLineId;
+        private System.Windows.Forms.Button btnAddHoleLine;
+        private System.Windows.Forms.Button btnDeleteBreakLine;
+        private System.Windows.Forms.ListBox listBreakLineId;
+        private System.Windows.Forms.Button btnAddBreakLine;
     }
 }
