@@ -411,6 +411,7 @@ namespace MyMiningPlugin.Services
                 IsClosed = geo.IsClosed,
                 IsBoundary = geo.IsBoundary,
                 IsHole = geo.IsHole,
+                IsBreakline = geo.IsBreakline,
                 VertexCount = geo.FlattenedVertices.Count,
                 FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList()
             };
@@ -432,6 +433,7 @@ namespace MyMiningPlugin.Services
                     item.IsClosed,
                     item.IsBoundary,
                     item.IsHole,
+                    item.IsBreakline,
                     item.VertexCount,
                     item.FlattenedVertices
                 };

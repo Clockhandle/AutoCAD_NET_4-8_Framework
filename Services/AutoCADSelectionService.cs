@@ -246,6 +246,10 @@ namespace MyMiningPlugin.Services
             {
                 int newCount = 0;
 
+                // Build a HashSet for O(1) duplicate checking instead of O(n) Any()
+                var existingHandles = new System.Collections.Generic.HashSet<string>(
+                    surface.SelectedGeometry.Select(g => g.Handle));
+
                 using (Transaction tr = db.TransactionManager.StartTransaction())
                 {
                     foreach (SelectedObject obj in res.Value)
@@ -254,7 +258,7 @@ namespace MyMiningPlugin.Services
                         if (ent == null) continue;
 
                         string handle = ent.Handle.ToString();
-                        if (surface.SelectedGeometry.Any(g => g.Handle == handle))
+                        if (!existingHandles.Add(handle))
                             continue;
 
                         GeometryReference geoRef = new GeometryReference

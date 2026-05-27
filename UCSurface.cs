@@ -50,10 +50,24 @@ namespace AutoCAD_NET_4_8_Framework
             // Populate the main ListBox
             listBoxIds.BeginUpdate();
             listBoxIds.Items.Clear();
-            foreach (var geoRef in surface.SelectedGeometry)
+            const int maxDisplayItems = 500;
+            if (isPointMode && surface.SelectedGeometry.Count > maxDisplayItems)
             {
-                bool inCurrentDwg = geoRef.CurrentObjectId.HasValue && !geoRef.CurrentObjectId.Value.IsNull;
-                listBoxIds.Items.Add($"{(inCurrentDwg ? "✓" : "⚠")} [{geoRef.Handle}] {geoRef.Layer}");
+                // For large point clouds, only show a summary to avoid UI freeze
+                listBoxIds.Items.Add($"[Hiển thị {maxDisplayItems} / {surface.SelectedGeometry.Count} điểm]");
+                foreach (var geoRef in surface.SelectedGeometry.Take(maxDisplayItems))
+                {
+                    bool inCurrentDwg = geoRef.CurrentObjectId.HasValue && !geoRef.CurrentObjectId.Value.IsNull;
+                    listBoxIds.Items.Add($"{(inCurrentDwg ? "✓" : "⚠")} [{geoRef.Handle}] {geoRef.Layer}");
+                }
+            }
+            else
+            {
+                foreach (var geoRef in surface.SelectedGeometry)
+                {
+                    bool inCurrentDwg = geoRef.CurrentObjectId.HasValue && !geoRef.CurrentObjectId.Value.IsNull;
+                    listBoxIds.Items.Add($"{(inCurrentDwg ? "✓" : "⚠")} [{geoRef.Handle}] {geoRef.Layer}");
+                }
             }
             listBoxIds.EndUpdate();
 
