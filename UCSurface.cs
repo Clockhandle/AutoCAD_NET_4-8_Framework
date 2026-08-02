@@ -135,6 +135,24 @@ namespace AutoCAD_NET_4_8_Framework
         private void btnAddBreakLine_Click(object sender, EventArgs e) => _onSelectBreakLines?.Invoke();
         private void btnDeleteBreakLines_Click(object sender, EventArgs e) => _onClearBreakLines?.Invoke();
 
+        /// <summary>
+        /// Hides boundary, hole and breakline sections so only the main
+        /// polyline list and its select/clear buttons are visible.
+        /// Used for surfaces that only accept a single polyline set (e.g. Đứt gãy in a khối).
+        /// </summary>
+        public void HideExtraSections()
+        {
+            listBoundaryLineId.Visible = false;
+            btnAddBoundaryLine.Visible = false;
+            btnDeleteBoundaryLines.Visible = false;
+            listHoleLineId.Visible = false;
+            btnAddHoleLine.Visible = false;
+            btnDeleteHoleLine.Visible = false;
+            listBreakLineId.Visible = false;
+            btnAddBreakLine.Visible = false;
+            btnDeleteBreakLine.Visible = false;
+        }
+
         private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
 

@@ -35,13 +35,17 @@ namespace AutoCAD_NET_4_8_Framework
 
             InitializeComponent();
             
-            this.Text = "Mining Manager";
+            this.Text = "MineTerra3D";
             this.MinimumSize = new System.Drawing.Size(800, 600);
             this.Size = new System.Drawing.Size(1024, 700);
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             
             // Wire up the TreeView selection event
             treeView.AfterSelect += TreeView_AfterSelect;
+            treeView.LabelEdit = true;
+            treeView.BeforeLabelEdit += TreeView_BeforeLabelEdit;
+            treeView.AfterLabelEdit += TreeView_AfterLabelEdit;
+            treeView.NodeMouseClick += TreeView_NodeMouseClick;
             
             // Try loading saved project silently (no MessageBox during construction)
             var loadedProject = _persistenceService.LoadProjectData(silent: true);
@@ -74,7 +78,7 @@ namespace AutoCAD_NET_4_8_Framework
             
             string nodeTag = e.Node.Tag as string;
 
-            if (nodeTag == "RootVias" || nodeTag == "RootFaults" || nodeTag == "RootRocks" || nodeTag == "RootBoreholes" || nodeTag == "RootBeMats")
+            if (nodeTag == "RootVias" || nodeTag == "RootFaults" || nodeTag == "RootRocks" || nodeTag == "RootBoreholes" || nodeTag == "RootBeMats" || nodeTag == "RootMineTopologies" || nodeTag == "RootGioiHans")
             {
                 // 1. Create the instance of the UserControl
                 UCRootCategory rootUc = new UCRootCategory { Dock = DockStyle.Fill };
@@ -95,6 +99,7 @@ namespace AutoCAD_NET_4_8_Framework
                         break;
 
                     case "RootBeMats":
+                        var beMatUC = rootUc; // capture ref for async callback
                         rootUc.LoadData(
                             title: "Quản lý Bề mặt",
                             addBtnText: "+ Thêm Bề mặt Mới",
@@ -102,7 +107,23 @@ namespace AutoCAD_NET_4_8_Framework
                             onSendToServer: () => ShowSendMultipleDialog("Bề mặt"),
                             onExportJson: () => ShowExportMultipleDialog("Bề mặt"),
                             onSaveProject: () => SaveProjectData(),
-                            onLoadProject: () => LoadProjectData()
+                            onLoadProject: () => LoadProjectData(),
+                            onRunDQ: async () =>
+                            {
+                                var names = _project.BeMats.Select(b => b.Name).ToList();
+                                string summary = await _exportService.RunDQChecksForBeMats(
+                                    _project.BeMats, names, _project);
+                                beMatUC.SetMarkersActive(true);
+                                MessageBox.Show(summary, "Kết quả kiểm tra DQ",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            },
+                            onClearMarkers: () =>
+                            {
+                                string result = _exportService.ClearQualityMarkers();
+                                beMatUC.SetMarkersActive(false);
+                                MessageBox.Show(result, "Xóa marker",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
                         );
                         break;
 
@@ -125,6 +146,30 @@ namespace AutoCAD_NET_4_8_Framework
                             onAddNew: () => AddNewBorehole(),
                             onSendToServer: () => ShowSendMultipleDialog("Lỗ khoan"),
                             onExportJson: () => ShowExportMultipleDialog("Lỗ khoan"),
+                            onSaveProject: () => SaveProjectData(),
+                            onLoadProject: () => LoadProjectData()
+                        );
+                        break;
+
+                    case "RootMineTopologies":
+                        rootUc.LoadData(
+                            title: "Địa hình lò (Nền / Nóc / Biên)",
+                            addBtnText: "+ Thêm địa hình lò",
+                            onAddNew: () => AddNewMineTopology(),
+                            onSendToServer: () => ShowSendMultipleDialog("Địa hình lò"),
+                            onExportJson: () => ShowExportMultipleDialog("Địa hình lò"),
+                            onSaveProject: () => SaveProjectData(),
+                            onLoadProject: () => LoadProjectData()
+                        );
+                        break;
+
+                    case "RootGioiHans":
+                        rootUc.LoadData(
+                            title: "Giới hạn cấp phép",
+                            addBtnText: "+ Thêm Giới hạn Mới",
+                            onAddNew: () => AddNewGioiHan(),
+                            onSendToServer: () => ShowSendMultipleDialog("Giới hạn"),
+                            onExportJson: () => ShowExportMultipleDialog("Giới hạn"),
                             onSaveProject: () => SaveProjectData(),
                             onLoadProject: () => LoadProjectData()
                         );
@@ -218,7 +263,62 @@ namespace AutoCAD_NET_4_8_Framework
             {
                 UCSurface ucSurface = new UCSurface { Dock = DockStyle.Fill };
                 RenderSurfaceLogic(ucSurface, surface, e.Node, isDeletable: false, onDelete: null);
+                if (surface.Type == "Đứt gãy")
+                    ucSurface.HideExtraSections();
                 rightPanel.Controls.Add(ucSurface);
+            }
+            else if (e.Node.Tag is MineTopologyData topo)
+            {
+                _selectionService.ResolveCurrentDrawingReferences(topo);
+                UCMineTopology ucTopo = new UCMineTopology { Dock = DockStyle.Fill };
+                var topoNode = e.Node;
+                ucTopo.LoadData(topo,
+                    onSelectNen: () => {
+                        this.Hide();
+                        _selectionService.SelectLinesToList(topo.Nen, "Nền");
+                        this.Show();
+                        TreeView_AfterSelect(sender, new TreeViewEventArgs(topoNode));
+                    },
+                    onClearNen: () => { topo.Nen.Clear(); TreeView_AfterSelect(sender, new TreeViewEventArgs(topoNode)); },
+                    onSelectNoc: () => {
+                        this.Hide();
+                        _selectionService.SelectLinesToList(topo.Noc, "Nóc");
+                        this.Show();
+                        TreeView_AfterSelect(sender, new TreeViewEventArgs(topoNode));
+                    },
+                    onClearNoc: () => { topo.Noc.Clear(); TreeView_AfterSelect(sender, new TreeViewEventArgs(topoNode)); },
+                    onSelectBien: () => {
+                        this.Hide();
+                        _selectionService.SelectLinesToList(topo.Bien, "Biên");
+                        this.Show();
+                        TreeView_AfterSelect(sender, new TreeViewEventArgs(topoNode));
+                    },
+                    onClearBien: () => { topo.Bien.Clear(); TreeView_AfterSelect(sender, new TreeViewEventArgs(topoNode)); }
+                );
+                rightPanel.Controls.Add(ucTopo);
+            }
+            else if (e.Node.Tag is GioiHanData gioiHan)
+            {
+                UCGioiHan ucGioiHan = new UCGioiHan { Dock = DockStyle.Fill };
+                ucGioiHan.LoadData(gioiHan,
+                    onAddBlock: () => AddNewGioiHanBlock(e.Node),
+                    onDeleteGioiHan: () => { e.Node.Remove(); _project.GioiHans.Remove(gioiHan); rightPanel.Controls.Clear(); }
+                );
+                rightPanel.Controls.Add(ucGioiHan);
+            }
+            else if (e.Node.Tag is GioiHanKhoiData gioiHanKhoi)
+            {
+                UCGioiHanKhoi ucGioiHanKhoi = new UCGioiHanKhoi { Dock = DockStyle.Fill };
+                ucGioiHanKhoi.LoadData(gioiHanKhoi,
+                    onDeleteKhoi: () =>
+                    {
+                        GioiHanData parentGioiHan = e.Node.Parent?.Tag as GioiHanData;
+                        parentGioiHan?.Blocks.Remove(gioiHanKhoi);
+                        e.Node.Remove();
+                        rightPanel.Controls.Clear();
+                    }
+                );
+                rightPanel.Controls.Add(ucGioiHanKhoi);
             }
         }
 
@@ -313,7 +413,8 @@ namespace AutoCAD_NET_4_8_Framework
             {
                 Name = blockName,
                 Vach = new SurfaceData { Type = "Vách", ParentName = $"{via.Name} - {blockName}" },
-                Tru = new SurfaceData { Type = "Trụ", ParentName = $"{via.Name} - {blockName}" }
+                Tru = new SurfaceData { Type = "Trụ", ParentName = $"{via.Name} - {blockName}" },
+                DutGay = new SurfaceData { Type = "Đứt gãy", ParentName = $"{via.Name} - {blockName}" }
             };
             via.Blocks.Add(newBlock);
 
@@ -326,8 +427,12 @@ namespace AutoCAD_NET_4_8_Framework
             TreeNode truNode = new TreeNode("Trụ");
             truNode.Tag = newBlock.Tru;
 
+            TreeNode dutGayNode = new TreeNode("Đứt gãy");
+            dutGayNode.Tag = newBlock.DutGay;
+
             blockNode.Nodes.Add(vachNode);
             blockNode.Nodes.Add(truNode);
+            blockNode.Nodes.Add(dutGayNode);
             viaNode.Nodes.Add(blockNode);
             viaNode.Expand();
         }
@@ -439,6 +544,83 @@ namespace AutoCAD_NET_4_8_Framework
             }
         }
 
+        private void AddNewMineTopology()
+        {
+            string topoName = $"Địa hình lò {_project.MineTopologies.Count + 1}";
+            MineTopologyData newTopo = new MineTopologyData { Name = topoName };
+            _project.MineTopologies.Add(newTopo);
+
+            TreeNode node = new TreeNode(topoName);
+            node.Tag = newTopo;
+
+            if (treeView != null)
+            {
+                foreach (TreeNode n in treeView.Nodes)
+                {
+                    if (n.Tag as string == "RootMineTopologies")
+                    {
+                        n.Nodes.Add(node);
+                        n.Expand();
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void AddNewGioiHan()
+        {
+            string ghName = $"Giới hạn {_project.GioiHans.Count + 1}";
+            GioiHanData newGioiHan = new GioiHanData { Name = ghName };
+            _project.GioiHans.Add(newGioiHan);
+
+            TreeNode node = new TreeNode(ghName);
+            node.Tag = newGioiHan;
+
+            if (treeView != null)
+            {
+                foreach (TreeNode n in treeView.Nodes)
+                {
+                    if (n.Tag as string == "RootGioiHans")
+                    {
+                        n.Nodes.Add(node);
+                        n.Expand();
+                        break;
+                    }
+                }
+            }
+
+            AddNewGioiHanBlock(node);
+        }
+
+        private void AddNewGioiHanBlock(TreeNode ghNode)
+        {
+            GioiHanData gioiHan = ghNode.Tag as GioiHanData;
+            if (gioiHan == null) return;
+
+            string blockName = $"Vùng {gioiHan.Blocks.Count + 1}";
+            GioiHanKhoiData newKhoi = new GioiHanKhoiData
+            {
+                Name = blockName,
+                Vach = new SurfaceData { Type = "Vách", ParentName = $"{gioiHan.Name} - {blockName}" },
+                Tru  = new SurfaceData { Type = "Trụ",  ParentName = $"{gioiHan.Name} - {blockName}" }
+            };
+            gioiHan.Blocks.Add(newKhoi);
+
+            TreeNode blockNode = new TreeNode(blockName);
+            blockNode.Tag = newKhoi;
+
+            TreeNode vachNode = new TreeNode("Vách");
+            vachNode.Tag = newKhoi.Vach;
+
+            TreeNode truNode = new TreeNode("Trụ");
+            truNode.Tag = newKhoi.Tru;
+
+            blockNode.Nodes.Add(vachNode);
+            blockNode.Nodes.Add(truNode);
+            ghNode.Nodes.Add(blockNode);
+            ghNode.Expand();
+        }
+
         private void SaveProjectData()
         {
             _persistenceService.SaveProjectData(_project);
@@ -454,6 +636,126 @@ namespace AutoCAD_NET_4_8_Framework
             }
         }
 
+        private void TreeView_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            if (e.Button != MouseButtons.Right)
+                return;
+
+            // Only show context menu for renameable/deletable nodes (not root/category string tags)
+            if (e.Node.Tag is string)
+                return;
+
+            treeView.SelectedNode = e.Node;
+
+            ContextMenuStrip menu = new ContextMenuStrip();
+
+            ToolStripMenuItem renameItem = new ToolStripMenuItem("Đổi tên");
+            renameItem.Click += (s, args) => e.Node.BeginEdit();
+            menu.Items.Add(renameItem);
+
+            // Only offer delete for leaf data nodes that have a clear parent-list owner
+            bool isDeletable = e.Node.Tag is ViaData
+                            || e.Node.Tag is FaultData
+                            || e.Node.Tag is RockData
+                            || e.Node.Tag is BeMatData
+                            || e.Node.Tag is BoreholeData
+                            || e.Node.Tag is MineTopologyData
+                            || e.Node.Tag is GioiHanData;
+
+            if (isDeletable)
+            {
+                menu.Items.Add(new ToolStripSeparator());
+                ToolStripMenuItem deleteItem = new ToolStripMenuItem("Xóa");
+                deleteItem.ForeColor = System.Drawing.Color.Red;
+                deleteItem.Click += (s, args) =>
+                {
+                    string itemName = e.Node.Text;
+                    var confirm = MessageBox.Show(
+                        $"Xóa \"{itemName}\"?", "Xác nhận xóa",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (confirm != DialogResult.Yes) return;
+
+                    if (e.Node.Tag is ViaData via)
+                        _project.Vias.Remove(via);
+                    else if (e.Node.Tag is FaultData fault)
+                        _project.Faults.Remove(fault);
+                    else if (e.Node.Tag is RockData rock)
+                        _project.Rocks.Remove(rock);
+                    else if (e.Node.Tag is BeMatData bemat)
+                        _project.BeMats.Remove(bemat);
+                    else if (e.Node.Tag is BoreholeData borehole)
+                        _project.Boreholes.Remove(borehole);
+                    else if (e.Node.Tag is MineTopologyData topo)
+                        _project.MineTopologies.Remove(topo);
+                    else if (e.Node.Tag is GioiHanData gioiHan)
+                        _project.GioiHans.Remove(gioiHan);
+
+                    e.Node.Remove();
+                    rightPanel.Controls.Clear();
+                };
+                menu.Items.Add(deleteItem);
+            }
+
+            menu.Show(treeView, e.Location);
+        }
+
+        private void TreeView_BeforeLabelEdit(object sender, NodeLabelEditEventArgs e)
+        {
+            // Block editing on root/category nodes
+            if (e.Node.Tag is string)
+                e.CancelEdit = true;
+        }
+
+        private void TreeView_AfterLabelEdit(object sender, NodeLabelEditEventArgs e)
+        {
+            if (e.CancelEdit || string.IsNullOrWhiteSpace(e.Label))
+            {
+                e.CancelEdit = true;
+                return;
+            }
+
+            string newName = e.Label.Trim();
+            var node = e.Node;
+
+            if (node.Tag is ViaData via)
+                via.Name = newName;
+            else if (node.Tag is FaultData fault)
+            {
+                fault.Name = newName;
+                fault.Surface.ParentName = newName;
+            }
+            else if (node.Tag is RockData rock)
+            {
+                rock.Name = newName;
+                rock.Surface.ParentName = newName;
+            }
+            else if (node.Tag is BeMatData bemat)
+            {
+                bemat.Name = newName;
+                bemat.Surface.ParentName = newName;
+            }
+            else if (node.Tag is BoreholeData borehole)
+                borehole.Name = newName;
+            else if (node.Tag is MineTopologyData topo)
+                topo.Name = newName;
+            else if (node.Tag is GioiHanData gioiHan)
+                gioiHan.Name = newName;
+            else if (node.Tag is GioiHanKhoiData gioiHanKhoi)
+                gioiHanKhoi.Name = newName;
+            else if (node.Tag is KhoiData khoi)
+                khoi.Name = newName;
+            else
+            {
+                e.CancelEdit = true;
+                return;
+            }
+
+            // Allow the node label to update visually
+            node.EndEdit(false);
+            e.CancelEdit = true; // we set the label via node.Text ourselves below
+            node.Text = newName;
+        }
+
         private void ShowSendMultipleDialog(string category)
         {
             List<string> items = GetItemsByCategory(category);
@@ -466,7 +768,7 @@ namespace AutoCAD_NET_4_8_Framework
             var dialog = new SendMultipleDataDialog($"Chọn {category} để gửi", items, category, GetCurrentDrawingName());
             if (dialog.ShowDialog() == DialogResult.OK)
             {
-                SendMultipleToServer(category, dialog.SelectedItems, dialog.MapName, dialog.ServerUrl);
+                SendMultipleToServer(category, dialog.SelectedItems, dialog.MapName, dialog.ServerUrl, dialog.SelectedDate);
             }
         }
 
@@ -507,17 +809,17 @@ namespace AutoCAD_NET_4_8_Framework
                 case "Đứt gãy": return _project.Faults.Select(f => f.Name).ToList();
                 case "Nham thạch": return _project.Rocks.Select(r => r.Name).ToList();
                 case "Lỗ khoan": return _project.Boreholes.Select(b => b.Name).ToList();
+                case "Địa hình lò": return _project.MineTopologies.Select(t => t.Name).ToList();
+                case "Giới hạn": return _project.GioiHans.Select(g => g.Name).ToList();
                 default: return new List<string>();
             }
         }
 
-        private async void SendMultipleToServer(string category, List<string> selectedNames, string mapName, string serverUrl)
+        private async void SendMultipleToServer(string category, List<string> selectedNames, string mapName, string serverUrl, DateTime? date = null)
         {
             try
             {
-                serverUrl = txtServerUrl.Text.Trim();
-                string url = serverUrl.TrimEnd('/') + "/api/cad-data";
-                await _exportService.SendToServer(category, selectedNames, mapName, url, _project, this);
+                await _exportService.SendToServer(category, selectedNames, mapName, serverUrl, _project, this, date);
             }
             catch (Exception ex)
             {
@@ -562,6 +864,14 @@ namespace AutoCAD_NET_4_8_Framework
             rootBoreholes.Tag = "RootBoreholes";
             treeView.Nodes.Add(rootBoreholes);
 
+            TreeNode rootMineTopologies = new TreeNode("Địa hình lò");
+            rootMineTopologies.Tag = "RootMineTopologies";
+            treeView.Nodes.Add(rootMineTopologies);
+
+            TreeNode rootGioiHans = new TreeNode("Giới hạn cấp phép");
+            rootGioiHans.Tag = "RootGioiHans";
+            treeView.Nodes.Add(rootGioiHans);
+
             foreach (var via in _project.Vias)
             {
                 TreeNode viaNode = new TreeNode(via.Name);
@@ -579,8 +889,12 @@ namespace AutoCAD_NET_4_8_Framework
                     TreeNode truNode = new TreeNode("Trụ");
                     truNode.Tag = khoi.Tru;
 
+                    TreeNode dutGayNode = new TreeNode("Đứt gãy");
+                    dutGayNode.Tag = khoi.DutGay ?? new SurfaceData { Type = "Đứt gãy", ParentName = khoi.Name };
+
                     blockNode.Nodes.Add(vachNode);
                     blockNode.Nodes.Add(truNode);
+                    blockNode.Nodes.Add(dutGayNode);
                     viaNode.Nodes.Add(blockNode);
                 }
             }
@@ -611,6 +925,32 @@ namespace AutoCAD_NET_4_8_Framework
                 TreeNode node = new TreeNode(borehole.Name);
                 node.Tag = borehole;
                 rootBoreholes.Nodes.Add(node);
+            }
+
+            foreach (var topo in _project.MineTopologies)
+            {
+                TreeNode node = new TreeNode(topo.Name);
+                node.Tag = topo;
+                rootMineTopologies.Nodes.Add(node);
+            }
+
+            foreach (var gioiHan in _project.GioiHans)
+            {
+                TreeNode ghNode = new TreeNode(gioiHan.Name);
+                ghNode.Tag = gioiHan;
+                foreach (var khoi in gioiHan.Blocks)
+                {
+                    TreeNode blockNode = new TreeNode(khoi.Name);
+                    blockNode.Tag = khoi;
+                    TreeNode vachNode = new TreeNode("Vách");
+                    vachNode.Tag = khoi.Vach;
+                    TreeNode truNode = new TreeNode("Trụ");
+                    truNode.Tag = khoi.Tru;
+                    blockNode.Nodes.Add(vachNode);
+                    blockNode.Nodes.Add(truNode);
+                    ghNode.Nodes.Add(blockNode);
+                }
+                rootGioiHans.Nodes.Add(ghNode);
             }
 
             treeView.ExpandAll();

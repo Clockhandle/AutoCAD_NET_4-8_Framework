@@ -233,12 +233,13 @@ namespace MyMiningPlugin.Services
             Database db = doc.Database;
             Editor ed = doc.Editor;
 
+            // Accept both regular points and text/mtext elevation labels in one selection
             SelectionFilter filter = new SelectionFilter(new TypedValue[] {
-                new TypedValue((int)DxfCode.Start, "POINT")
+                new TypedValue((int)DxfCode.Start, "POINT,TEXT,MTEXT")
             });
 
             PromptSelectionOptions opts = new PromptSelectionOptions();
-            opts.MessageForAdding = $"\nChọn các điểm cho {surface.ParentName}: ";
+            opts.MessageForAdding = $"\nChọn các điểm / text cao độ cho {surface.ParentName}: ";
 
             PromptSelectionResult res = ed.GetSelection(opts, filter);
 
@@ -246,7 +247,6 @@ namespace MyMiningPlugin.Services
             {
                 int newCount = 0;
 
-                // Build a HashSet for O(1) duplicate checking instead of O(n) Any()
                 var existingHandles = new System.Collections.Generic.HashSet<string>(
                     surface.SelectedGeometry.Select(g => g.Handle));
 
@@ -267,7 +267,7 @@ namespace MyMiningPlugin.Services
                             SourceDwgPath = db.Filename ?? "Unsaved Drawing",
                             SourceDwgName = string.IsNullOrEmpty(db.Filename) ? "Unsaved" : System.IO.Path.GetFileName(db.Filename),
                             Layer = ent.Layer,
-                            EntityType = "POINT",
+                            EntityType = ent.GetRXClass().Name,
                             VertexCount = 1,
                             CurrentObjectId = obj.ObjectId
                         };
@@ -278,9 +278,28 @@ namespace MyMiningPlugin.Services
                     tr.Commit();
                 }
 
-                MessageBox.Show($"Đã thêm {newCount} điểm vào danh sách.\nTổng: {surface.SelectedGeometry.Count} điểm",
-                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string msg = $"Đã thêm {newCount} mục vào danh sách.\nTổng: {surface.SelectedGeometry.Count} điểm";
+                MessageBox.Show(msg, "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+        }
+
+        private string GetTextContent(Entity ent)
+        {
+            if (ent is DBText dbText)
+                return dbText.TextString.Trim();
+
+            if (ent is MText mText)
+            {
+                string raw = mText.Contents;
+                // Remove \fFont|b0|i0|c0|p34;  \H...;  \W...;  etc.
+                raw = System.Text.RegularExpressions.Regex.Replace(raw, @"\\[A-Za-z][^;]*;", "");
+                // Remove remaining backslash sequences without semicolons
+                raw = System.Text.RegularExpressions.Regex.Replace(raw, @"\\.", "");
+                raw = raw.Replace("{", "").Replace("}", "");
+                return raw.Trim();
+            }
+
+            return string.Empty;
         }
 
         /// <summary>
@@ -345,6 +364,116 @@ namespace MyMiningPlugin.Services
 
                 MessageBox.Show($"Đã thêm {newCount} đường đê vào danh sách.\nTổng: {surface.BreaklineGeometry.Count} breaklines",
                     "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>
+        /// Select lines/polylines from AutoCAD and add to an arbitrary geometry list.
+        /// Used for mine topology data (Nền, Nóc, Biên).
+        /// </summary>
+        public void SelectLinesToList(List<GeometryReference> targetList, string promptLabel)
+        {
+            Document doc = AcApp.DocumentManager.MdiActiveDocument;
+            if (doc == null)
+            {
+                MessageBox.Show("No active AutoCAD document.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            SelectionFilter filter = new SelectionFilter(new TypedValue[] {
+                new TypedValue((int)DxfCode.Start, "LWPOLYLINE,POLYLINE,LINE")
+            });
+
+            PromptSelectionOptions opts = new PromptSelectionOptions();
+            opts.MessageForAdding = $"\nChọn các đường {promptLabel}: ";
+
+            PromptSelectionResult res = ed.GetSelection(opts, filter);
+
+            if (res.Status == PromptStatus.OK)
+            {
+                int newCount = 0;
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    foreach (SelectedObject obj in res.Value)
+                    {
+                        Entity ent = tr.GetObject(obj.ObjectId, OpenMode.ForRead) as Entity;
+                        if (ent == null) continue;
+
+                        string handle = ent.Handle.ToString();
+                        if (targetList.Any(g => g.Handle == handle))
+                            continue;
+
+                        GeometryReference geoRef = new GeometryReference
+                        {
+                            Handle = handle,
+                            SourceDwgPath = db.Filename ?? "Unsaved Drawing",
+                            SourceDwgName = string.IsNullOrEmpty(db.Filename) ? "Unsaved" : System.IO.Path.GetFileName(db.Filename),
+                            Layer = ent.Layer,
+                            EntityType = ent.GetRXClass().Name,
+                            CurrentObjectId = obj.ObjectId
+                        };
+
+                        if (ent is Polyline pl)
+                            geoRef.VertexCount = pl.NumberOfVertices;
+                        else if (ent is Line)
+                            geoRef.VertexCount = 2;
+
+                        targetList.Add(geoRef);
+                        newCount++;
+                    }
+                    tr.Commit();
+                }
+
+                MessageBox.Show($"Đã thêm {newCount} đường {promptLabel} vào danh sách.\nTổng: {targetList.Count} lines",
+                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>
+        /// Resolve GeometryReferences in all lists of a MineTopologyData.
+        /// </summary>
+        public void ResolveCurrentDrawingReferences(MyMiningPlugin.Models.MineTopologyData topology)
+        {
+            try
+            {
+                Document doc = AcApp.DocumentManager.MdiActiveDocument;
+                if (doc == null) return;
+
+                Database db = doc.Database;
+                var allRefs = topology.Nen.Concat(topology.Noc).Concat(topology.Bien);
+
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    foreach (var geoRef in allRefs)
+                    {
+                        try
+                        {
+                            long handleValue = Convert.ToInt64(geoRef.Handle, 16);
+                            Handle handle = new Handle(handleValue);
+                            if (db.TryGetObjectId(handle, out ObjectId id) && !id.IsNull && id.IsValid)
+                            {
+                                Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                                geoRef.CurrentObjectId = ent != null ? id : (ObjectId?)null;
+                            }
+                            else
+                            {
+                                geoRef.CurrentObjectId = null;
+                            }
+                        }
+                        catch
+                        {
+                            geoRef.CurrentObjectId = null;
+                        }
+                    }
+                    tr.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ResolveCurrentDrawingReferences (MineTopology) ERROR: {ex.Message}");
             }
         }
 

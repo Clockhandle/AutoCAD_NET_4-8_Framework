@@ -17,6 +17,7 @@ namespace MyMiningPlugin.Services
     public class ExportService
     {
         private readonly GeometryProcessingService _geometryProcessor;
+        private readonly QualityMarkerService _markerService = new QualityMarkerService();
         private static readonly HttpClient client = new HttpClient();
 
         public ExportService(GeometryProcessingService geometryProcessor)
@@ -31,7 +32,8 @@ namespace MyMiningPlugin.Services
             string category, 
             List<string> selectedNames, 
             string mapName,
-            MiningProject project)
+            MiningProject project,
+            DateTime? date = null)
         {
             var flattenedItems = new List<object>();
 
@@ -54,7 +56,16 @@ namespace MyMiningPlugin.Services
                     break;
 
                 case "Bề mặt":
-                    await ProcessBeMats(project.BeMats, selectedNames, mapName, flattenedItems);
+                    bool proceed = await ProcessBeMats(project.BeMats, selectedNames, mapName, flattenedItems);
+                    if (!proceed) return null; // quality errors — caller must abort
+                    break;
+
+                case "Địa hình lò":
+                    await ProcessMineTopologies(project.MineTopologies, selectedNames, mapName, flattenedItems, date);
+                    break;
+
+                case "Giới hạn":
+                    await ProcessGioiHans(project.GioiHans, selectedNames, mapName, flattenedItems);
                     break;
             }
 
@@ -168,9 +179,54 @@ namespace MyMiningPlugin.Services
                             }
                         }
                         break;
+
+                    case "Địa hình lò":
+                        debugDetails += $"Số Địa hình lò trong project: {project.MineTopologies.Count}\n";
+                        foreach (var name in selectedNames)
+                        {
+                            var topo = project.MineTopologies.FirstOrDefault(t => t.Name == name);
+                            if (topo != null)
+                            {
+                                int nenCount  = topo.Nen.Count;
+                                int nocCount  = topo.Noc.Count;
+                                int bienCount = topo.Bien.Count;
+                                int nenResolved  = topo.Nen.Count(g  => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                int nocResolved  = topo.Noc.Count(g  => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                int bienResolved = topo.Bien.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                debugDetails += $"- '{topo.Name}': Nền={nenCount}(r={nenResolved}), Nóc={nocCount}(r={nocResolved}), Biên={bienCount}(r={bienResolved})\n";
+                                totalGeometryCount   += nenCount + nocCount + bienCount;
+                                resolvedGeometryCount += nenResolved + nocResolved + bienResolved;
+                            }
+                        }
+                        break;
+
+                    case "Giới hạn":
+                        debugDetails += $"Số Giới hạn trong project: {project.GioiHans.Count}\n";
+                        foreach (var name in selectedNames)
+                        {
+                            var gh = project.GioiHans.FirstOrDefault(g => g.Name == name);
+                            if (gh != null)
+                            {
+                                debugDetails += $"- Giới hạn '{gh.Name}': {gh.Blocks.Count} vùng\n";
+                                foreach (var khoi in gh.Blocks)
+                                {
+                                    int vachCount = khoi.Vach.SelectedGeometry.Count;
+                                    int vachResolved = khoi.Vach.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                    int truCount = khoi.Tru.SelectedGeometry.Count;
+                                    int truResolved = khoi.Tru.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                    debugDetails += $"  - {khoi.Name}: Vách={vachCount}(r={vachResolved}), Trụ={truCount}(r={truResolved})\n";
+                                    totalGeometryCount   += vachCount + truCount;
+                                    resolvedGeometryCount += vachResolved + truResolved;
+                                }
+                            }
+                        }
+                        break;
                 }
 
                 string json = await GenerateCombinedJsonPayload(category, selectedNames, mapName, project);
+
+                // null means quality checks blocked the export (errors found, markers placed)
+                if (json == null) return;
 
                 // Check if any data was actually generated
                 if (json == "[]" || json == "[\r\n]" || json == "[\n]")
@@ -222,6 +278,37 @@ namespace MyMiningPlugin.Services
         }
 
         /// <summary>
+        /// Run data-quality checks for all selected Bề mặt items and place
+        /// markers on the drawing. Returns the summary string.
+        /// </summary>
+        public async Task<string> RunDQChecksForBeMats(
+            List<BeMatData> bemats, List<string> selectedNames, MiningProject project)
+        {
+            ResolveAllGeometryReferences("Bề mặt", selectedNames, project);
+
+            var allIssues = new List<QualityIssue>();
+            foreach (var name in selectedNames)
+            {
+                var bemat = bemats.FirstOrDefault(b => b.Name == name);
+                if (bemat == null || bemat.Surface.SelectedGeometry.Count == 0) continue;
+
+                var (_, issues) = await _geometryProcessor
+                    .ProcessGeometryWithQualityChecks(bemat.Surface);
+                allIssues.AddRange(issues);
+            }
+
+            if (allIssues.Count == 0)
+                return "Kiểm tra xong — không có vấn đề nào.";
+
+            return _markerService.PlaceMarkers(allIssues);
+        }
+
+        /// <summary>
+        /// Remove all DQ_* quality marker layers from the active drawing.
+        /// </summary>
+        public string ClearQualityMarkers() => _markerService.ClearMarkers();
+
+        /// <summary>
         /// Send JSON to server
         /// </summary>
         public async Task SendToServer(
@@ -230,25 +317,21 @@ namespace MyMiningPlugin.Services
             string mapName,
             string serverUrl,
             MiningProject project,
-            Form parentForm)
+            Form parentForm,
+            DateTime? date = null)
         {
             string baseUrl = serverUrl.TrimEnd('/');
-            string url = $"{baseUrl}/api/cad-data";
+            string url = $"{baseUrl}/api/cad-upload";
 
             try
             {
                 // CRITICAL: Resolve all geometry references BEFORE async processing
                 ResolveAllGeometryReferences(category, selectedNames, project);
-                
-                string json = await GenerateCombinedJsonPayload(category, selectedNames, mapName, project);
-                
-                // Check if any data was actually generated
-                if (json == "[]")
-                {
-                    MessageBox.Show($"Không có dữ liệu để gửi!\n\nVui lòng kiểm tra:\n- {category} đã có Khối (Block) chưa?\n- Các Khối đã chọn đường (lines) chưa?\n- Đường đã chọn có trong file DWG hiện tại không?", 
-                        "Không có dữ liệu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+
+                string json = await GenerateCombinedJsonPayload(category, selectedNames, mapName, project, date);
+
+                // null means quality checks blocked the export (errors found, markers placed)
+                if (json == null) return;
                 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -273,9 +356,10 @@ namespace MyMiningPlugin.Services
                     catch (Exception ex)
                     {
                         if (parentForm.IsDisposed) return;
+                        string innerMsg = ex.InnerException != null ? $"\nChi tiết: {ex.InnerException.Message}" : "";
                         parentForm.Invoke((MethodInvoker)delegate
                         {
-                            MessageBox.Show($"Lỗi kết nối: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBox.Show($"Lỗi kết nối:\nURL: {url}\n{ex.Message}{innerMsg}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         });
                     }
                 });
@@ -315,6 +399,16 @@ namespace MyMiningPlugin.Services
                             foreach (var geo in truGeometryList)
                             {
                                 flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Trụ"));
+                            }
+                        }
+
+                        // Process DutGay (Fault within block) - only if it has geometry
+                        if (khoi.DutGay != null && khoi.DutGay.SelectedGeometry.Count > 0)
+                        {
+                            var dutGayGeometryList = await _geometryProcessor.ProcessGeometryWithSmartZ(khoi.DutGay);
+                            foreach (var geo in dutGayGeometryList)
+                            {
+                                flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Đứt gãy"));
                             }
                         }
                     }
@@ -380,20 +474,34 @@ namespace MyMiningPlugin.Services
             }
         }
 
-        private async Task ProcessBeMats(List<BeMatData> bemats, List<string> selectedNames, string mapName, List<object> flattenedItems)
+        private async Task<bool> ProcessBeMats(List<BeMatData> bemats, List<string> selectedNames, string mapName, List<object> flattenedItems)
         {
             foreach (var name in selectedNames)
             {
                 var bemat = bemats.FirstOrDefault(b => b.Name == name);
-                if (bemat != null && bemat.Surface.SelectedGeometry.Count > 0)
-                {
-                    var geometryList = await _geometryProcessor.ProcessGeometryWithSmartZ(bemat.Surface);
-                    foreach (var geo in geometryList)
+                if (bemat == null || (bemat.Surface.SelectedGeometry.Count == 0 && bemat.Surface.BoundaryGeometry.Count == 0)) continue;
+
+                var geometryList = await _geometryProcessor.ProcessGeometryWithSmartZ(bemat.Surface);
+                foreach (var geo in geometryList)
+                    flattenedItems.Add(new
                     {
-                        flattenedItems.Add(CreateGeometryItem(geo, mapName, bemat.Name, null, "Bề mặt"));
-                    }
-                }
+                        MapName = mapName,
+                        Handle = geo.Handle,
+                        Layer = geo.Layer,
+                        ColorIndex = geo.ColorIndex,
+                        ColorName = geo.ColorName,
+                        TrueColor = geo.TrueColor,
+                        ViaName = bemat.Name,
+                        Type = "Bề mặt",
+                        IsClosed = geo.IsClosed,
+                        IsBoundary = geo.IsBoundary,
+                        IsHole = geo.IsHole,
+                        IsBreakline = geo.IsBreakline,
+                        VertexCount = geo.FlattenedVertices.Count,
+                        FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList()
+                    });
             }
+            return true;
         }
 
         private object CreateGeometryItem(CADObjectData geo, string mapName, string name, string blockName, string type)
@@ -454,9 +562,10 @@ namespace MyMiningPlugin.Services
                         var via = project.Vias.FirstOrDefault(v => v.Name == name);
                         if (via != null)
                         {
-                            lineCount += via.Blocks.Sum(b => 
-                                b.Vach.SelectedGeometry.Count + b.Vach.BoundaryGeometry.Count + 
-                                b.Tru.SelectedGeometry.Count + b.Tru.BoundaryGeometry.Count);
+                            lineCount += via.Blocks.Sum(b =>
+                                b.Vach.SelectedGeometry.Count + b.Vach.BoundaryGeometry.Count +
+                                b.Tru.SelectedGeometry.Count + b.Tru.BoundaryGeometry.Count +
+                                (b.DutGay?.SelectedGeometry.Count ?? 0));
                         }
                     }
                     break;
@@ -488,6 +597,21 @@ namespace MyMiningPlugin.Services
                         if (bemat != null) lineCount += bemat.Surface.SelectedGeometry.Count + bemat.Surface.BoundaryGeometry.Count;
                     }
                     break;
+                case "Địa hình lò":
+                    foreach (var name in selectedNames)
+                    {
+                        var topo = project.MineTopologies.FirstOrDefault(t => t.Name == name);
+                        if (topo != null) lineCount += topo.Nen.Count + topo.Noc.Count + topo.Bien.Count;
+                    }
+                    break;
+                case "Giới hạn":
+                    foreach (var name in selectedNames)
+                    {
+                        var gh = project.GioiHans.FirstOrDefault(g => g.Name == name);
+                        if (gh != null)
+                            lineCount += gh.Blocks.Sum(b => b.Vach.SelectedGeometry.Count + b.Tru.SelectedGeometry.Count);
+                    }
+                    break;
             }
 
             return lineCount;
@@ -511,6 +635,8 @@ namespace MyMiningPlugin.Services
                             {
                                 _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(khoi.Vach);
                                 _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(khoi.Tru);
+                                if (khoi.DutGay != null)
+                                    _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(khoi.DutGay);
                             }
                         }
                     }
@@ -555,7 +681,138 @@ namespace MyMiningPlugin.Services
                         }
                     }
                     break;
+                case "Địa hình lò":
+                    foreach (var name in selectedNames)
+                    {
+                        var topo = project.MineTopologies.FirstOrDefault(t => t.Name == name);
+                        if (topo != null)
+                        {
+                            _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(topo);
+                        }
+                    }
+                    break;
+                case "Giới hạn":
+                    foreach (var name in selectedNames)
+                    {
+                        var gh = project.GioiHans.FirstOrDefault(g => g.Name == name);
+                        if (gh != null)
+                        {
+                            foreach (var khoi in gh.Blocks)
+                            {
+                                _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(khoi.Vach);
+                                _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(khoi.Tru);
+                            }
+                        }
+                    }
+                    break;
             }
+        }
+
+        private async Task ProcessGioiHans(
+            List<GioiHanData> gioiHans, List<string> selectedNames,
+            string mapName, List<object> flattenedItems)
+        {
+            foreach (var name in selectedNames)
+            {
+                var gh = gioiHans.FirstOrDefault(g => g.Name == name);
+                if (gh == null) continue;
+
+                foreach (var khoi in gh.Blocks)
+                {
+                    if (khoi.Vach.SelectedGeometry.Count > 0)
+                    {
+                        var geoList = await _geometryProcessor.ProcessGeometryWithSmartZ(khoi.Vach);
+                        foreach (var geo in geoList)
+                            flattenedItems.Add(CreateGioiHanItem(geo, mapName, gh.Name, khoi.Name, "Vách"));
+                    }
+                    if (khoi.Tru.SelectedGeometry.Count > 0)
+                    {
+                        var geoList = await _geometryProcessor.ProcessGeometryWithSmartZ(khoi.Tru);
+                        foreach (var geo in geoList)
+                            flattenedItems.Add(CreateGioiHanItem(geo, mapName, gh.Name, khoi.Name, "Trụ"));
+                    }
+                }
+            }
+        }
+
+        private object CreateGioiHanItem(
+            CADObjectData geo, string mapName,
+            string gioiHanName, string vungName, string surfaceType)
+        {
+            return new
+            {
+                MapName          = mapName,
+                Handle           = geo.Handle,
+                Layer            = geo.Layer,
+                ColorIndex       = geo.ColorIndex,
+                ColorName        = geo.ColorName,
+                TrueColor        = geo.TrueColor,
+                Name             = gioiHanName,
+                VungName         = vungName,
+                Type             = surfaceType,
+                IsVungGioiHan    = true,
+                IsClosed         = geo.IsClosed,
+                IsBoundary       = geo.IsBoundary,
+                IsBreakline      = geo.IsBreakline,
+                VertexCount      = geo.FlattenedVertices.Count,
+                FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList()
+            };
+        }
+
+        private async Task ProcessMineTopologies(
+            List<MineTopologyData> topologies, List<string> selectedNames,
+            string mapName, List<object> flattenedItems, DateTime? date = null)
+        {
+            foreach (var name in selectedNames)
+            {
+                var topo = topologies.FirstOrDefault(t => t.Name == name);
+                if (topo == null) continue;
+
+                List<CADObjectData> nenGeoList = new List<CADObjectData>();
+
+                // Nền
+                if (topo.Nen.Count > 0)
+                {
+                    nenGeoList = await _geometryProcessor.ProcessGeometryList(topo.Nen, topo.Name, "Nền");
+                    foreach (var geo in nenGeoList)
+                        flattenedItems.Add(CreateMineTopologyItem(geo, mapName, topo.Name, "Nền", date));
+                }
+                // Nóc
+                if (topo.Noc.Count > 0)
+                {
+                    var geoList = await _geometryProcessor.ProcessGeometryList(topo.Noc, topo.Name, "Nóc");
+                    foreach (var geo in geoList)
+                        flattenedItems.Add(CreateMineTopologyItem(geo, mapName, topo.Name, "Nóc", date));
+                }
+                // Biên — Z values are assigned from the nearest Nền vertex in XY space
+                if (topo.Bien.Count > 0)
+                {
+                    var bienGeoList = await _geometryProcessor.ProcessGeometryList(topo.Bien, topo.Name, "Biên");
+                    _geometryProcessor.AssignBienZFromNen(bienGeoList, nenGeoList);
+                    foreach (var geo in bienGeoList)
+                        flattenedItems.Add(CreateMineTopologyItem(geo, mapName, topo.Name, "Biên", date));
+                }
+            }
+        }
+
+        private object CreateMineTopologyItem(CADObjectData geo, string mapName, string topoName, string layerType, DateTime? date = null)
+        {
+            return new
+            {
+                MapName      = mapName,
+                Handle       = geo.Handle,
+                Layer        = geo.Layer,
+                ColorIndex   = geo.ColorIndex,
+                ColorName    = geo.ColorName,
+                TrueColor    = geo.TrueColor,
+                Name         = topoName,
+                Type         = "Địa hình lò",
+                LayerType    = layerType,
+                Date         = date.HasValue ? date.Value.ToString("yyyy-MM-dd") : null,
+                IsClosed     = geo.IsClosed,
+                VertexCount  = geo.FlattenedVertices.Count,
+                FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList()
+            };
         }
     }
 }

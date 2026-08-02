@@ -35,11 +35,12 @@ namespace MyMiningPlugin.Services
                     {
                         v.Name,
                         Blocks = v.Blocks.Select(b => new
-                        {
-                            b.Name,
-                            Vach = SerializeSurfaceData(b.Vach),
-                            Tru = SerializeSurfaceData(b.Tru)
-                        }).ToList()
+                            {
+                                b.Name,
+                                Vach = SerializeSurfaceData(b.Vach),
+                                Tru = SerializeSurfaceData(b.Tru),
+                                DutGay = b.DutGay != null ? SerializeSurfaceData(b.DutGay) : null
+                            }).ToList()
                     }).ToList(),
                     Faults = project.Faults.Select(f => new
                     {
@@ -60,6 +61,11 @@ namespace MyMiningPlugin.Services
                         b.Z,
                         b.Intervals,
                         b.Trajectory
+                    }).ToList(),
+                    BeMats = project.BeMats.Select(b => new
+                    {
+                        b.Name,
+                        Surface = SerializeSurfaceData(b.Surface)
                     }).ToList()
                 };
 
@@ -105,7 +111,10 @@ namespace MyMiningPlugin.Services
                         {
                             Name = blockData.Name.ToString(),
                             Vach = DeserializeSurfaceData(blockData.Vach),
-                            Tru = DeserializeSurfaceData(blockData.Tru)
+                            Tru = DeserializeSurfaceData(blockData.Tru),
+                            DutGay = blockData.DutGay != null
+                                ? DeserializeSurfaceData(blockData.DutGay)
+                                : new SurfaceData { Type = "Đứt gãy", ParentName = blockData.Name.ToString() }
                         };
                         via.Blocks.Add(khoi);
                     }
@@ -179,8 +188,22 @@ namespace MyMiningPlugin.Services
                     }
                 }
 
+                // Reconstruct BeMats
+                if (projectData.BeMats != null)
+                {
+                    foreach (var beMatData in projectData.BeMats)
+                    {
+                        BeMatData beMat = new BeMatData
+                        {
+                            Name = beMatData.Name.ToString(),
+                            Surface = DeserializeSurfaceData(beMatData.Surface)
+                        };
+                        project.BeMats.Add(beMat);
+                    }
+                }
+
                 if (!silent)
-                    MessageBox.Show($"Đã tải dự án từ:\n{path}", "Tải thành công", 
+                    MessageBox.Show($"Đã tải dự án từ:\n{path}", "Tải thành công",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 return project;
@@ -226,6 +249,15 @@ namespace MyMiningPlugin.Services
                     g.Layer,
                     g.EntityType,
                     g.VertexCount
+                }).ToList(),
+                BreaklineGeometry = surface.BreaklineGeometry.Select(g => new
+                {
+                    g.Handle,
+                    g.SourceDwgPath,
+                    g.SourceDwgName,
+                    g.Layer,
+                    g.EntityType,
+                    g.VertexCount
                 }).ToList()
             };
         }
@@ -247,6 +279,11 @@ namespace MyMiningPlugin.Services
             if (surfaceData.HoleGeometry != null)
             {
                 surface.HoleGeometry = DeserializeGeometryReferences(surfaceData.HoleGeometry);
+            }
+
+            if (surfaceData.BreaklineGeometry != null)
+            {
+                surface.BreaklineGeometry = DeserializeGeometryReferences(surfaceData.BreaklineGeometry);
             }
 
             return surface;

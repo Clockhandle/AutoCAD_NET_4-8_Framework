@@ -93,17 +93,38 @@
     <Compile Include="MiningManagerDForm.Designer.cs">
       <DependentUpon>MiningManagerDForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Services\DataQualityService.cs" />
+    <Compile Include="Services\MapApiService.cs" />
+    <Compile Include="Services\QualityMarkerService.cs" />
     <Compile Include="UCBoreholes.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="UCBoreholes.Designer.cs">
       <DependentUpon>UCBoreholes.cs</DependentUpon>
     </Compile>
+    <Compile Include="UCGioiHan.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCGioiHan.Designer.cs">
+      <DependentUpon>UCGioiHan.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCGioiHanKhoi.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCGioiHanKhoi.Designer.cs">
+      <DependentUpon>UCGioiHanKhoi.cs</DependentUpon>
+    </Compile>
     <Compile Include="UCKhoi.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="UCKhoi.Designer.cs">
       <DependentUpon>UCKhoi.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UCMineTopology.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCMineTopology.Designer.cs">
+      <DependentUpon>UCMineTopology.cs</DependentUpon>
     </Compile>
     <Compile Include="UCRootCategory.cs">
       <SubType>UserControl</SubType>
@@ -185,15 +206,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="AutoCADPath.props.user.template" />
-    <None Include="CRITICAL_FIX_SUMMARY.md" />
-    <None Include="DEBUGGING_GUIDE.md" />
     <None Include="Directory.Build.props" />
-    <None Include="EXPORT_BUG_FIX.md" />
-    <None Include="EXPORT_DEBUGGING_GUIDE.md" />
-    <None Include="EXPORT_FIX_EXPLANATION.md" />
     <None Include="packages.config" />
-    <None Include="REFACTORING_COMPLETE.md" />
-    <None Include="REFACTORING_SUMMARY.md" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

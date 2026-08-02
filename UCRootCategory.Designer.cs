@@ -34,6 +34,7 @@
             this.btnExportJson = new System.Windows.Forms.Button();
             this.btnSaveProject = new System.Windows.Forms.Button();
             this.btnLoadProject = new System.Windows.Forms.Button();
+            this.btnClearMarkers = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // lblHeader
@@ -96,6 +97,17 @@
             this.btnLoadProject.UseVisualStyleBackColor = true;
             this.btnLoadProject.Click += new System.EventHandler(this.btnLoadProject_Click);
             // 
+            // btnClearMarkers
+            // 
+            this.btnClearMarkers.Location = new System.Drawing.Point(23, 252);
+            this.btnClearMarkers.Name = "btnClearMarkers";
+            this.btnClearMarkers.Size = new System.Drawing.Size(116, 36);
+            this.btnClearMarkers.TabIndex = 6;
+            this.btnClearMarkers.Text = "Kiểm tra DQ";
+            this.btnClearMarkers.UseVisualStyleBackColor = true;
+            this.btnClearMarkers.Visible = false;
+            this.btnClearMarkers.Click += new System.EventHandler(this.btnClearMarkers_Click);
+            // 
             // UCRootCategory
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -106,6 +118,7 @@
             this.Controls.Add(this.btnSendServer);
             this.Controls.Add(this.btnAdd);
             this.Controls.Add(this.lblHeader);
+            this.Controls.Add(this.btnClearMarkers);
             this.Name = "UCRootCategory";
             this.Size = new System.Drawing.Size(367, 359);
             this.ResumeLayout(false);
@@ -121,5 +134,6 @@
         private System.Windows.Forms.Button btnExportJson;
         private System.Windows.Forms.Button btnSaveProject;
         private System.Windows.Forms.Button btnLoadProject;
+        private System.Windows.Forms.Button btnClearMarkers;
     }
 }

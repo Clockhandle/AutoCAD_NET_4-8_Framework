@@ -16,6 +16,7 @@ namespace MyMiningPlugin.Models
         public string Name { get; set; }
         public SurfaceData Vach { get; set; }
         public SurfaceData Tru { get; set; }
+        public SurfaceData DutGay { get; set; }
     }
 
     public class SurfaceData
@@ -89,6 +90,27 @@ namespace MyMiningPlugin.Models
         public double PVI { get; set; } // PHAN VI
     }
 
+    public class MineTopologyData
+    {
+        public string Name { get; set; }
+        public List<GeometryReference> Nen { get; set; } = new List<GeometryReference>();
+        public List<GeometryReference> Noc { get; set; } = new List<GeometryReference>();
+        public List<GeometryReference> Bien { get; set; } = new List<GeometryReference>();
+    }
+
+    public class GioiHanData
+    {
+        public string Name { get; set; }
+        public List<GioiHanKhoiData> Blocks { get; set; } = new List<GioiHanKhoiData>();
+    }
+
+    public class GioiHanKhoiData
+    {
+        public string Name { get; set; }
+        public SurfaceData Vach { get; set; }
+        public SurfaceData Tru { get; set; }
+    }
+
     // Project container for all mining data
     public class MiningProject
     {
@@ -97,5 +119,7 @@ namespace MyMiningPlugin.Models
         public List<FaultData> Faults { get; set; } = new List<FaultData>();
         public List<RockData> Rocks { get; set; } = new List<RockData>();
         public List<BoreholeData> Boreholes { get; set; } = new List<BoreholeData>();
+        public List<MineTopologyData> MineTopologies { get; set; } = new List<MineTopologyData>();
+        public List<GioiHanData> GioiHans { get; set; } = new List<GioiHanData>();
     }
 }

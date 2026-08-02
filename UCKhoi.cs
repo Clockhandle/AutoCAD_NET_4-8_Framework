@@ -18,7 +18,8 @@ namespace AutoCAD_NET_4_8_Framework
             _onDeleteKhoi = onDeleteKhoi;
 
             lblHeader.Text = khoi.Name;
-            lblnfoText.Text = $"Vách: {khoi.Vach.SelectedGeometry.Count} lines\nTrụ: {khoi.Tru.SelectedGeometry.Count} lines";
+            int dutGayCount = khoi.DutGay?.SelectedGeometry.Count ?? 0;
+            lblnfoText.Text = $"Vách: {khoi.Vach.SelectedGeometry.Count} lines\nTrụ: {khoi.Tru.SelectedGeometry.Count} lines\nĐứt gãy: {dutGayCount} lines";
         }
 
         // TODO: Map this method to your "Xóa Khối" Button's Click Event in the Designer!
