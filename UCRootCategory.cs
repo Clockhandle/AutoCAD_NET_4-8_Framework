@@ -7,6 +7,7 @@ namespace AutoCAD_NET_4_8_Framework
     public partial class UCRootCategory : UserControl
     {
         private Action _onAddNew;
+        private Action _onAddNew2;
         private Action _onSendToServer;
         private Action _onExportJson;
         private Action _onSaveProject;
@@ -29,12 +30,15 @@ namespace AutoCAD_NET_4_8_Framework
             Action onSaveProject,
             Action onLoadProject,
             Action onRunDQ = null,
-            Action onClearMarkers = null)
+            Action onClearMarkers = null,
+            Action onAddNew2 = null,
+            string addBtn2Text = null)
         {
             lblHeader.Text = title;
             btnAdd.Text    = addBtnText;
 
             _onAddNew       = onAddNew;
+            _onAddNew2      = onAddNew2;
             _onSendToServer = onSendToServer;
             _onExportJson   = onExportJson;
             _onSaveProject  = onSaveProject;
@@ -45,6 +49,23 @@ namespace AutoCAD_NET_4_8_Framework
             btnClearMarkers.Visible = onRunDQ != null;
             btnClearMarkers.Enabled = onRunDQ != null;
             SetMarkersActive(false);
+
+            if (onAddNew2 != null)
+            {
+                btnAdd2.Text    = addBtn2Text ?? "+ Thêm mới (Loại 2)";
+                btnAdd2.Visible = true;
+                // Shift the other buttons down to make room
+                int shift = btnAdd2.Height + 6;
+                btnSendServer.Top  += shift;
+                btnExportJson.Top  += shift;
+                btnSaveProject.Top += shift;
+                btnLoadProject.Top += shift;
+                btnClearMarkers.Top += shift;
+            }
+            else
+            {
+                btnAdd2.Visible = false;
+            }
         }
 
         /// <summary>
@@ -56,11 +77,12 @@ namespace AutoCAD_NET_4_8_Framework
             btnClearMarkers.Text = active ? "Xóa marker DQ" : "Kiểm tra DQ";
         }
 
-        private void btnAdd_Click(object sender, EventArgs e) => _onAddNew?.Invoke();
+        private void btnAdd_Click(object sender, EventArgs e)  => _onAddNew?.Invoke();
+        private void btnAdd2_Click(object sender, EventArgs e) => _onAddNew2?.Invoke();
         private void btnSendToServer_Click(object sender, EventArgs e) => _onSendToServer?.Invoke();
-        private void btnExportJson_Click(object sender, EventArgs e) => _onExportJson?.Invoke();
-        private void btnSaveProject_Click(object sender, EventArgs e) => _onSaveProject?.Invoke();
-        private void btnLoadProject_Click(object sender, EventArgs e) => _onLoadProject?.Invoke();
+        private void btnExportJson_Click(object sender, EventArgs e)   => _onExportJson?.Invoke();
+        private void btnSaveProject_Click(object sender, EventArgs e)  => _onSaveProject?.Invoke();
+        private void btnLoadProject_Click(object sender, EventArgs e)  => _onLoadProject?.Invoke();
 
         private void btnClearMarkers_Click(object sender, EventArgs e)
         {

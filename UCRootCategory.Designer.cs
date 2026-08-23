@@ -30,6 +30,7 @@
         {
             this.lblHeader = new System.Windows.Forms.Label();
             this.btnAdd = new System.Windows.Forms.Button();
+            this.btnAdd2 = new System.Windows.Forms.Button();
             this.btnSendServer = new System.Windows.Forms.Button();
             this.btnExportJson = new System.Windows.Forms.Button();
             this.btnSaveProject = new System.Windows.Forms.Button();
@@ -51,18 +52,29 @@
             // 
             this.btnAdd.Location = new System.Drawing.Point(23, 44);
             this.btnAdd.Name = "btnAdd";
-            this.btnAdd.Size = new System.Drawing.Size(116, 34);
+            this.btnAdd.Size = new System.Drawing.Size(160, 34);
             this.btnAdd.TabIndex = 1;
             this.btnAdd.Text = "+ Thêm Vỉa mới";
             this.btnAdd.UseVisualStyleBackColor = true;
             this.btnAdd.Click += new System.EventHandler(this.btnAdd_Click);
+            // 
+            // btnAdd2
+            // 
+            this.btnAdd2.Location = new System.Drawing.Point(23, 84);
+            this.btnAdd2.Name = "btnAdd2";
+            this.btnAdd2.Size = new System.Drawing.Size(160, 34);
+            this.btnAdd2.TabIndex = 2;
+            this.btnAdd2.Text = "+ Thêm mới (Loại 2)";
+            this.btnAdd2.UseVisualStyleBackColor = true;
+            this.btnAdd2.Visible = false;
+            this.btnAdd2.Click += new System.EventHandler(this.btnAdd2_Click);
             // 
             // btnSendServer
             // 
             this.btnSendServer.Location = new System.Drawing.Point(23, 84);
             this.btnSendServer.Name = "btnSendServer";
             this.btnSendServer.Size = new System.Drawing.Size(116, 36);
-            this.btnSendServer.TabIndex = 2;
+            this.btnSendServer.TabIndex = 3;
             this.btnSendServer.Text = "Gửi lên server";
             this.btnSendServer.UseVisualStyleBackColor = true;
             this.btnSendServer.Click += new System.EventHandler(this.btnSendToServer_Click);
@@ -72,7 +84,7 @@
             this.btnExportJson.Location = new System.Drawing.Point(23, 126);
             this.btnExportJson.Name = "btnExportJson";
             this.btnExportJson.Size = new System.Drawing.Size(116, 36);
-            this.btnExportJson.TabIndex = 3;
+            this.btnExportJson.TabIndex = 4;
             this.btnExportJson.Text = "Xuất JSON";
             this.btnExportJson.UseVisualStyleBackColor = true;
             this.btnExportJson.Click += new System.EventHandler(this.btnExportJson_Click);
@@ -82,7 +94,7 @@
             this.btnSaveProject.Location = new System.Drawing.Point(23, 168);
             this.btnSaveProject.Name = "btnSaveProject";
             this.btnSaveProject.Size = new System.Drawing.Size(116, 36);
-            this.btnSaveProject.TabIndex = 4;
+            this.btnSaveProject.TabIndex = 5;
             this.btnSaveProject.Text = "Lưu dự án";
             this.btnSaveProject.UseVisualStyleBackColor = true;
             this.btnSaveProject.Click += new System.EventHandler(this.btnSaveProject_Click);
@@ -92,7 +104,7 @@
             this.btnLoadProject.Location = new System.Drawing.Point(23, 210);
             this.btnLoadProject.Name = "btnLoadProject";
             this.btnLoadProject.Size = new System.Drawing.Size(116, 36);
-            this.btnLoadProject.TabIndex = 5;
+            this.btnLoadProject.TabIndex = 6;
             this.btnLoadProject.Text = "Tải dự án";
             this.btnLoadProject.UseVisualStyleBackColor = true;
             this.btnLoadProject.Click += new System.EventHandler(this.btnLoadProject_Click);
@@ -102,7 +114,7 @@
             this.btnClearMarkers.Location = new System.Drawing.Point(23, 252);
             this.btnClearMarkers.Name = "btnClearMarkers";
             this.btnClearMarkers.Size = new System.Drawing.Size(116, 36);
-            this.btnClearMarkers.TabIndex = 6;
+            this.btnClearMarkers.TabIndex = 7;
             this.btnClearMarkers.Text = "Kiểm tra DQ";
             this.btnClearMarkers.UseVisualStyleBackColor = true;
             this.btnClearMarkers.Visible = false;
@@ -116,6 +128,7 @@
             this.Controls.Add(this.btnSaveProject);
             this.Controls.Add(this.btnExportJson);
             this.Controls.Add(this.btnSendServer);
+            this.Controls.Add(this.btnAdd2);
             this.Controls.Add(this.btnAdd);
             this.Controls.Add(this.lblHeader);
             this.Controls.Add(this.btnClearMarkers);
@@ -130,6 +143,7 @@
 
         private System.Windows.Forms.Label lblHeader;
         private System.Windows.Forms.Button btnAdd;
+        private System.Windows.Forms.Button btnAdd2;
         private System.Windows.Forms.Button btnSendServer;
         private System.Windows.Forms.Button btnExportJson;
         private System.Windows.Forms.Button btnSaveProject;

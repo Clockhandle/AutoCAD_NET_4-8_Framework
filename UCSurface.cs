@@ -148,6 +148,17 @@ namespace AutoCAD_NET_4_8_Framework
             listHoleLineId.Visible = false;
             btnAddHoleLine.Visible = false;
             btnDeleteHoleLine.Visible = false;
+            HideBreaklineSection();
+        }
+
+        /// <summary>
+        /// Hides only the breakline (đường đê) sub-list. The breakline concept belongs to
+        /// Bề mặt's terrain-clipping/quality-check flow — it doesn't apply to a Via block's
+        /// Vách/Trụ surfaces, where the "breakline" role (the line splitting a block/volume
+        /// into two downstream) is carried by Đứt gãy instead.
+        /// </summary>
+        public void HideBreaklineSection()
+        {
             listBreakLineId.Visible = false;
             btnAddBreakLine.Visible = false;
             btnDeleteBreakLine.Visible = false;

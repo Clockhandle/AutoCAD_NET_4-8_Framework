@@ -545,5 +545,122 @@ namespace MyMiningPlugin.Services
                 System.Diagnostics.Debug.WriteLine($"ResolveCurrentDrawingReferences ERROR: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// Prompt the user to pick a single polyline/line and return a GeometryReference for it.
+        /// Returns null if the user cancels or picks nothing.
+        /// </summary>
+        public GeometryReference SelectSinglePolyline(string prompt)
+        {
+            Document doc = AcApp.DocumentManager.MdiActiveDocument;
+            if (doc == null) return null;
+
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            SelectionFilter filter = new SelectionFilter(new TypedValue[] {
+                new TypedValue((int)DxfCode.Start, "LWPOLYLINE,POLYLINE,LINE")
+            });
+
+            PromptSelectionOptions opts = new PromptSelectionOptions();
+            opts.MessageForAdding  = $"\n{prompt}: ";
+            opts.SingleOnly        = true;
+            opts.SinglePickInSpace = true;
+
+            PromptSelectionResult res = ed.GetSelection(opts, filter);
+            if (res.Status != PromptStatus.OK || res.Value.Count == 0) return null;
+
+            GeometryReference geoRef = null;
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                Entity ent = tr.GetObject(res.Value[0].ObjectId, OpenMode.ForRead) as Entity;
+                if (ent != null)
+                {
+                    var cachedVerts = new System.Collections.Generic.List<double[]>();
+                    bool isClosed = false;
+                    if (ent is Polyline plEnt)
+                    {
+                        isClosed = plEnt.Closed;
+                        for (int i = 0; i < plEnt.NumberOfVertices; i++)
+                        {
+                            Point3d pt = plEnt.GetPoint3dAt(i);
+                            cachedVerts.Add(new double[] { pt.X, pt.Y, pt.Z });
+                        }
+                    }
+                    else if (ent is Polyline3d poly3dEnt)
+                    {
+                        isClosed = poly3dEnt.Closed;
+                        foreach (ObjectId vertexId in poly3dEnt)
+                        {
+                            var v3d = tr.GetObject(vertexId, OpenMode.ForRead) as PolylineVertex3d;
+                            if (v3d != null)
+                                cachedVerts.Add(new double[] { v3d.Position.X, v3d.Position.Y, v3d.Position.Z });
+                        }
+                    }
+                    else if (ent is Polyline2d poly2dEnt)
+                    {
+                        isClosed = poly2dEnt.Closed;
+                        foreach (ObjectId vertexId in poly2dEnt)
+                        {
+                            var v2d = tr.GetObject(vertexId, OpenMode.ForRead) as Vertex2d;
+                            if (v2d != null)
+                                cachedVerts.Add(new double[] { v2d.Position.X, v2d.Position.Y, v2d.Position.Z });
+                        }
+                    }
+                    else if (ent is Line lineEnt)
+                    {
+                        isClosed = false;
+                        cachedVerts.Add(new double[] { lineEnt.StartPoint.X, lineEnt.StartPoint.Y, lineEnt.StartPoint.Z });
+                        cachedVerts.Add(new double[] { lineEnt.EndPoint.X, lineEnt.EndPoint.Y, lineEnt.EndPoint.Z });
+                    }
+
+                    geoRef = new GeometryReference
+                    {
+                        Handle          = ent.Handle.ToString(),
+                        SourceDwgPath   = db.Filename ?? "Unsaved Drawing",
+                        SourceDwgName   = string.IsNullOrEmpty(db.Filename) ? "Unsaved" : System.IO.Path.GetFileName(db.Filename),
+                        Layer           = ent.Layer,
+                        EntityType      = ent.GetRXClass().Name,
+                        VertexCount     = cachedVerts.Count > 0 ? cachedVerts.Count : 2,
+                        CachedVertices  = cachedVerts,
+                        IsClosed        = isClosed,
+                        CurrentObjectId = res.Value[0].ObjectId
+                    };
+                }
+                tr.Commit();
+            }
+            return geoRef;
+        }
+
+        /// <summary>
+        /// Resolve a single GeometryReference against the current drawing.
+        /// </summary>
+        public void ResolveReference(GeometryReference geoRef)
+        {
+            if (geoRef == null) return;
+            try
+            {
+                Document doc = AcApp.DocumentManager.MdiActiveDocument;
+                if (doc == null) return;
+                Database db = doc.Database;
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        long handleValue = Convert.ToInt64(geoRef.Handle, 16);
+                        Handle handle = new Handle(handleValue);
+                        if (db.TryGetObjectId(handle, out ObjectId id) && !id.IsNull && id.IsValid)
+                        {
+                            Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                            geoRef.CurrentObjectId = ent != null ? id : (ObjectId?)null;
+                        }
+                        else geoRef.CurrentObjectId = null;
+                    }
+                    catch { geoRef.CurrentObjectId = null; }
+                    tr.Commit();
+                }
+            }
+            catch { }
+        }
     }
 }

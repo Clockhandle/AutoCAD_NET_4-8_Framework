@@ -1,4 +1,4 @@
-using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 
@@ -38,7 +38,14 @@ namespace MyMiningPlugin.Models
         public string Layer { get; set; }            // Layer name
         public string EntityType { get; set; }       // "LWPOLYLINE", "LINE"
         public int VertexCount { get; set; }         // Number of vertices
-        
+
+        // Cached vertex data — populated at selection time so the polyline can be
+        // exported even when the source drawing is not currently open.
+        public List<double[]> CachedVertices { get; set; }
+
+        // Whether the polyline is closed — needed for cross-section shape reconstruction.
+        public bool IsClosed { get; set; }
+
         // Runtime property: resolved ObjectId (null if not in current drawing)
         [JsonIgnore]
         public ObjectId? CurrentObjectId { get; set; }
@@ -85,7 +92,7 @@ namespace MyMiningPlugin.Models
 
     public class SurveyReading
     {
-        public double DepthRange { get; set; } // CS�o
+        public double DepthRange { get; set; } // CS®o
         public double DO { get; set; }
         public double PVI { get; set; } // PHAN VI
     }
@@ -96,6 +103,30 @@ namespace MyMiningPlugin.Models
         public List<GeometryReference> Nen { get; set; } = new List<GeometryReference>();
         public List<GeometryReference> Noc { get; set; } = new List<GeometryReference>();
         public List<GeometryReference> Bien { get; set; } = new List<GeometryReference>();
+    }
+
+    // --- Tiết diện (cross-section shape, stored in a global library) ---
+    public class TietDienData
+    {
+        public string Name { get; set; }
+        public GeometryReference Polyline { get; set; }   // single persistent polyline
+    }
+
+    // --- One segment of a Loại 2 mine tunnel ---
+    public class DoanDuongLoData
+    {
+        public string Name { get; set; }
+        public GeometryReference Polyline { get; set; }   // single polyline for this segment
+        public string TietDienName { get; set; }          // references TietDienData.Name
+    }
+
+    // --- Địa hình lò Loại 2 ---
+    public class MineTopologyLoai2Data
+    {
+        public string Name { get; set; }
+        // Named cross-section shapes — persisted globally, loaded per map
+        public List<TietDienData> TietDiens { get; set; } = new List<TietDienData>();
+        public List<DoanDuongLoData> DoanDuongLos { get; set; } = new List<DoanDuongLoData>();
     }
 
     public class GioiHanData
@@ -120,6 +151,7 @@ namespace MyMiningPlugin.Models
         public List<RockData> Rocks { get; set; } = new List<RockData>();
         public List<BoreholeData> Boreholes { get; set; } = new List<BoreholeData>();
         public List<MineTopologyData> MineTopologies { get; set; } = new List<MineTopologyData>();
+        public List<MineTopologyLoai2Data> MineTopologies2 { get; set; } = new List<MineTopologyLoai2Data>();
         public List<GioiHanData> GioiHans { get; set; } = new List<GioiHanData>();
     }
 }

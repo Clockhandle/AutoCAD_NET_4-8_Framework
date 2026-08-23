@@ -126,6 +126,9 @@
     <Compile Include="UCMineTopology.Designer.cs">
       <DependentUpon>UCMineTopology.cs</DependentUpon>
     </Compile>
+    <Compile Include="UCMineTopologyLoai2.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="UCRootCategory.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -159,6 +162,9 @@
       <DependentUpon>UCVia.cs</DependentUpon>
     </Compile>
     <Compile Include="UI\ExportDialogs.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UI\RenameDialog.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="UI_Events.cs">

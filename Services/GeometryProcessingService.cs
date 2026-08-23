@@ -156,8 +156,37 @@ namespace MyMiningPlugin.Services
                 foreach (var item in combinedList)
                 {
                     var geoRef = item.GeoRef;
-                    if (!geoRef.CurrentObjectId.HasValue || geoRef.CurrentObjectId.Value.IsNull)
-                    { skippedCount++; continue; }
+                    bool hasLiveId = geoRef.CurrentObjectId.HasValue && !geoRef.CurrentObjectId.Value.IsNull;
+
+                    // If the entity is not in the current drawing but we have cached vertices, build
+                    // a CADObjectData directly from the cache (used for cross-section shapes from
+                    // a different map file).
+                    if (!hasLiveId)
+                    {
+                        if (geoRef.CachedVertices != null && geoRef.CachedVertices.Count > 0)
+                        {
+                            var cadDataCached = new CADObjectData
+                            {
+                                GroupName         = surface.ParentName,
+                                ObjectType        = surface.Type,
+                                Layer             = geoRef.Layer ?? string.Empty,
+                                Handle            = geoRef.Handle,
+                                IsBoundary        = item.IsBoundary,
+                                IsHole            = item.IsHole,
+                                IsBreakline       = item.IsBreakline,
+                                IsClosed          = geoRef.IsClosed,
+                                Vertices          = geoRef.CachedVertices.Select(v => new double[] { v[0], v[1], v[2] }).ToList(),
+                                FlattenedVertices = geoRef.CachedVertices.Select(v => new double[] { v[0], v[1], v[2] }).ToList()
+                            };
+                            result.Add(cadDataCached);
+                            processedCount++;
+                        }
+                        else
+                        {
+                            skippedCount++;
+                        }
+                        continue;
+                    }
 
                     try
                     {

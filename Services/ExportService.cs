@@ -64,6 +64,10 @@ namespace MyMiningPlugin.Services
                     await ProcessMineTopologies(project.MineTopologies, selectedNames, mapName, flattenedItems, date);
                     break;
 
+                case "Địa hình lò Loại 2":
+                    await ProcessMineTopologies2(project.MineTopologies2, selectedNames, mapName, flattenedItems);
+                    break;
+
                 case "Giới hạn":
                     await ProcessGioiHans(project.GioiHans, selectedNames, mapName, flattenedItems);
                     break;
@@ -408,6 +412,9 @@ namespace MyMiningPlugin.Services
                             var dutGayGeometryList = await _geometryProcessor.ProcessGeometryWithSmartZ(khoi.DutGay);
                             foreach (var geo in dutGayGeometryList)
                             {
+                                // Đứt gãy IS the breakline for a Via block — it's the line that
+                                // splits the block/volume into two downstream in the render app.
+                                geo.IsBreakline = true;
                                 flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Đứt gãy"));
                             }
                         }
@@ -565,7 +572,7 @@ namespace MyMiningPlugin.Services
                             lineCount += via.Blocks.Sum(b =>
                                 b.Vach.SelectedGeometry.Count + b.Vach.BoundaryGeometry.Count +
                                 b.Tru.SelectedGeometry.Count + b.Tru.BoundaryGeometry.Count +
-                                (b.DutGay?.SelectedGeometry.Count ?? 0));
+                                b.DutGay.SelectedGeometry.Count);
                         }
                     }
                     break;
@@ -691,6 +698,19 @@ namespace MyMiningPlugin.Services
                         }
                     }
                     break;
+                case "Địa hình lò Loại 2":
+                    foreach (var name in selectedNames)
+                    {
+                        var t2 = project.MineTopologies2.FirstOrDefault(t => t.Name == name);
+                        if (t2 != null)
+                        {
+                            foreach (var td in t2.TietDiens)
+                                _geometryProcessor._selectionService.ResolveReference(td.Polyline);
+                            foreach (var d in t2.DoanDuongLos)
+                                _geometryProcessor._selectionService.ResolveReference(d.Polyline);
+                        }
+                    }
+                    break;
                 case "Giới hạn":
                     foreach (var name in selectedNames)
                     {
@@ -813,6 +833,84 @@ namespace MyMiningPlugin.Services
                 VertexCount  = geo.FlattenedVertices.Count,
                 FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList()
             };
+        }
+
+        private async Task ProcessMineTopologies2(
+            List<MineTopologyLoai2Data> topologies2, List<string> selectedNames,
+            string mapName, List<object> flattenedItems)
+        {
+            foreach (var name in selectedNames)
+            {
+                var t2 = topologies2.FirstOrDefault(t => t.Name == name);
+                if (t2 == null) continue;
+
+                // Export each TietDien polyline
+                foreach (var td in t2.TietDiens)
+                {
+                    if (td.Polyline == null) continue;
+                    var surface = new MyMiningPlugin.Models.SurfaceData
+                    {
+                        Type       = "Tiết diện",
+                        ParentName = t2.Name
+                    };
+                    surface.SelectedGeometry.Add(td.Polyline);
+                    var geoList = await _geometryProcessor.ProcessGeometryWithSmartZ(surface);
+                    foreach (var geo in geoList)
+                        flattenedItems.Add(new
+                        {
+                            MapName      = mapName,
+                            Handle       = geo.Handle,
+                            Layer        = geo.Layer,
+                            ColorIndex   = geo.ColorIndex,
+                            ColorName    = geo.ColorName,
+                            TrueColor    = geo.TrueColor,
+                            Name         = t2.Name,
+                            Type         = "Địa hình lò Loại 2",
+                            LayerType    = "TietDien",
+                            Date         = (string)null,
+                            IsClosed     = geo.IsClosed,
+                            VertexCount  = geo.FlattenedVertices.Count,
+                            FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList(),
+                            // Type 2 additions
+                            DuongLoName  = t2.Name,
+                            TietDienName = td.Name
+                        });
+                }
+
+                // Export each Đoạn đường lò polyline
+                foreach (var doan in t2.DoanDuongLos)
+                {
+                    if (doan.Polyline == null) continue;
+                    var surface = new MyMiningPlugin.Models.SurfaceData
+                    {
+                        Type       = "Đoạn đường lò",
+                        ParentName = t2.Name
+                    };
+                    surface.SelectedGeometry.Add(doan.Polyline);
+                    var geoList = await _geometryProcessor.ProcessGeometryWithSmartZ(surface);
+                    foreach (var geo in geoList)
+                        flattenedItems.Add(new
+                        {
+                            MapName      = mapName,
+                            Handle       = geo.Handle,
+                            Layer        = geo.Layer,
+                            ColorIndex   = geo.ColorIndex,
+                            ColorName    = geo.ColorName,
+                            TrueColor    = geo.TrueColor,
+                            Name         = t2.Name,
+                            Type         = "Địa hình lò Loại 2",
+                            LayerType    = "DoanDuongLo",
+                            Date         = (string)null,
+                            IsClosed     = geo.IsClosed,
+                            VertexCount  = geo.FlattenedVertices.Count,
+                            FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList(),
+                            // Type 2 additions
+                            DuongLoName  = t2.Name,
+                            TietDienName = doan.TietDienName,
+                            DoanName     = doan.Name
+                        });
+                }
+            }
         }
     }
 }

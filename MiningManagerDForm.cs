@@ -18,6 +18,9 @@ namespace AutoCAD_NET_4_8_Framework
         // Data Container
         private MiningProject _project = new MiningProject();
 
+        // Global Tiết diện library (persisted separately, shared across projects)
+        private List<TietDienData> _tietDienLibrary = new List<TietDienData>();
+
         // Services
         private AutoCADSelectionService _selectionService;
         private GeometryProcessingService _geometryProcessor;
@@ -34,19 +37,22 @@ namespace AutoCAD_NET_4_8_Framework
             _exportService = new ExportService(_geometryProcessor);
 
             InitializeComponent();
-            
+
             this.Text = "MineTerra3D";
             this.MinimumSize = new System.Drawing.Size(800, 600);
             this.Size = new System.Drawing.Size(1024, 700);
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            
+
             // Wire up the TreeView selection event
             treeView.AfterSelect += TreeView_AfterSelect;
             treeView.LabelEdit = true;
             treeView.BeforeLabelEdit += TreeView_BeforeLabelEdit;
             treeView.AfterLabelEdit += TreeView_AfterLabelEdit;
             treeView.NodeMouseClick += TreeView_NodeMouseClick;
-            
+
+            // Load global Tiết diện library
+            _tietDienLibrary = _persistenceService.LoadTietDienLibrary();
+
             // Try loading saved project silently (no MessageBox during construction)
             var loadedProject = _persistenceService.LoadProjectData(silent: true);
             if (loadedProject != null)
@@ -154,12 +160,43 @@ namespace AutoCAD_NET_4_8_Framework
                     case "RootMineTopologies":
                         rootUc.LoadData(
                             title: "Địa hình lò (Nền / Nóc / Biên)",
-                            addBtnText: "+ Thêm địa hình lò",
+                            addBtnText: "+ Thêm địa hình lò loại 1",
                             onAddNew: () => AddNewMineTopology(),
-                            onSendToServer: () => ShowSendMultipleDialog("Địa hình lò"),
-                            onExportJson: () => ShowExportMultipleDialog("Địa hình lò"),
+                            onSendToServer: () => {
+                                // Show a sub-menu: Loại 1 or Loại 2
+                                var form = new System.Windows.Forms.Form
+                                {
+                                    Text = "Gửi lên server", Size = new System.Drawing.Size(260, 140),
+                                    StartPosition = System.Windows.Forms.FormStartPosition.CenterParent,
+                                    FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
+                                    MaximizeBox = false, MinimizeBox = false
+                                };
+                                var b1 = new System.Windows.Forms.Button { Text = "Địa hình lò Loại 1", Location = new System.Drawing.Point(20, 20), Size = new System.Drawing.Size(200, 34) };
+                                var b2 = new System.Windows.Forms.Button { Text = "Địa hình lò Loại 2", Location = new System.Drawing.Point(20, 62), Size = new System.Drawing.Size(200, 34) };
+                                b1.Click += (s, ev) => { form.Close(); ShowSendMultipleDialog("Địa hình lò"); };
+                                b2.Click += (s, ev) => { form.Close(); ShowSendMultipleDialog("Địa hình lò Loại 2"); };
+                                form.Controls.Add(b1); form.Controls.Add(b2);
+                                form.ShowDialog(this);
+                            },
+                            onExportJson: () => {
+                                var form = new System.Windows.Forms.Form
+                                {
+                                    Text = "Xuất JSON", Size = new System.Drawing.Size(260, 140),
+                                    StartPosition = System.Windows.Forms.FormStartPosition.CenterParent,
+                                    FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
+                                    MaximizeBox = false, MinimizeBox = false
+                                };
+                                var b1 = new System.Windows.Forms.Button { Text = "Địa hình lò Loại 1", Location = new System.Drawing.Point(20, 20), Size = new System.Drawing.Size(200, 34) };
+                                var b2 = new System.Windows.Forms.Button { Text = "Địa hình lò Loại 2", Location = new System.Drawing.Point(20, 62), Size = new System.Drawing.Size(200, 34) };
+                                b1.Click += (s, ev) => { form.Close(); ShowExportMultipleDialog("Địa hình lò"); };
+                                b2.Click += (s, ev) => { form.Close(); ShowExportMultipleDialog("Địa hình lò Loại 2"); };
+                                form.Controls.Add(b1); form.Controls.Add(b2);
+                                form.ShowDialog(this);
+                            },
                             onSaveProject: () => SaveProjectData(),
-                            onLoadProject: () => LoadProjectData()
+                            onLoadProject: () => LoadProjectData(),
+                            onAddNew2: () => AddNewMineTopology2(),
+                            addBtn2Text: "+ Thêm địa hình lò loại 2"
                         );
                         break;
 
@@ -265,6 +302,10 @@ namespace AutoCAD_NET_4_8_Framework
                 RenderSurfaceLogic(ucSurface, surface, e.Node, isDeletable: false, onDelete: null);
                 if (surface.Type == "Đứt gãy")
                     ucSurface.HideExtraSections();
+                else if (surface.Type == "Vách" || surface.Type == "Trụ")
+                    // Breakline (đường đê) is a Bề mặt terrain-clipping concept — it doesn't apply
+                    // to a khối's Vách/Trụ. The line that splits a block into two volumes is Đứt gãy.
+                    ucSurface.HideBreaklineSection();
                 rightPanel.Controls.Add(ucSurface);
             }
             else if (e.Node.Tag is MineTopologyData topo)
@@ -296,6 +337,126 @@ namespace AutoCAD_NET_4_8_Framework
                     onClearBien: () => { topo.Bien.Clear(); TreeView_AfterSelect(sender, new TreeViewEventArgs(topoNode)); }
                 );
                 rightPanel.Controls.Add(ucTopo);
+            }
+            else if (e.Node.Tag is MineTopologyLoai2Data topo2)
+            {
+                // Resolve all single-polyline references
+                foreach (var td in topo2.TietDiens)
+                    _selectionService.ResolveReference(td.Polyline);
+                foreach (var d in topo2.DoanDuongLos)
+                    _selectionService.ResolveReference(d.Polyline);
+
+                var ucTopo2 = new UCMineTopologyLoai2 { Dock = DockStyle.Fill };
+                ucTopo2.LoadData(
+                    data: topo2,
+                    onAddTietDien: (tdName) => {
+                        this.Hide();
+                        var geoRef = _selectionService.SelectSinglePolyline($"Chọn polyline tiết diện '{tdName}'");
+                        this.Show();
+                        if (geoRef == null) return;
+                        if (IsDuplicatePolylineInTopo2(topo2, geoRef))
+                        {
+                            MessageBox.Show("Polyline này đã được dùng cho một tiết diện hoặc đoạn đường lò khác trong địa hình lò này.\nMỗi đoạn đường lò/tiết diện phải ứng với một polyline riêng biệt.",
+                                "Polyline trùng lặp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        var newTD = new TietDienData { Name = tdName, Polyline = geoRef };
+                        topo2.TietDiens.Add(newTD);
+                        // Upsert into global library
+                        var existing = _tietDienLibrary.FirstOrDefault(t => t.Name == tdName);
+                        if (existing != null) existing.Polyline = geoRef;
+                        else _tietDienLibrary.Add(new TietDienData { Name = tdName, Polyline = geoRef });
+                        _persistenceService.SaveTietDienLibrary(_tietDienLibrary);
+                        ucTopo2.RebuildUI();
+                    },
+                    onSelectTietDienPoly: (td) => {
+                        this.Hide();
+                        var geoRef = _selectionService.SelectSinglePolyline($"Chọn lại polyline cho '{td.Name}'");
+                        this.Show();
+                        if (geoRef == null) return;
+                        if (IsDuplicatePolylineInTopo2(topo2, geoRef, excludeEntry: td))
+                        {
+                            MessageBox.Show("Polyline này đã được dùng cho một tiết diện hoặc đoạn đường lò khác trong địa hình lò này.\nMỗi đoạn đường lò/tiết diện phải ứng với một polyline riêng biệt.",
+                                "Polyline trùng lặp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        td.Polyline = geoRef;
+                        // Sync global library
+                        var existing = _tietDienLibrary.FirstOrDefault(t => t.Name == td.Name);
+                        if (existing != null) existing.Polyline = geoRef;
+                        else _tietDienLibrary.Add(new TietDienData { Name = td.Name, Polyline = geoRef });
+                        _persistenceService.SaveTietDienLibrary(_tietDienLibrary);
+                        ucTopo2.RebuildUI();
+                    },
+                    onDeleteTietDien: (td) => {
+                        topo2.TietDiens.Remove(td);
+                        ucTopo2.RebuildUI();
+                    },
+                    onSaveTietDiens: () => {
+                        int saved = 0;
+                        foreach (var td in topo2.TietDiens)
+                        {
+                            if (td.Polyline == null) continue;  // skip entries with no polyline
+                            var existing = _tietDienLibrary.FirstOrDefault(t => t.Name == td.Name);
+                            if (existing != null) existing.Polyline = td.Polyline;
+                            else _tietDienLibrary.Add(new TietDienData { Name = td.Name, Polyline = td.Polyline });
+                            saved++;
+                        }
+                        _persistenceService.SaveTietDienLibrary(_tietDienLibrary);
+                        int skipped = topo2.TietDiens.Count - saved;
+                        string msg = $"Đã lưu {saved} tiết diện vào thư viện.";
+                        if (skipped > 0) msg += $"\n({skipped} mục chưa chọn polyline bị bỏ qua)";
+                        MessageBox.Show(msg, "Lưu thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    },
+                    onLoadTietDiens: () => {
+                        _tietDienLibrary = _persistenceService.LoadTietDienLibrary();
+                        if (_tietDienLibrary.Count == 0)
+                        {
+                            MessageBox.Show("Chưa có tiết diện nào trong thư viện.", "Thông báo",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+                        // Merge library into this entry (add any missing by name)
+                        foreach (var td in _tietDienLibrary)
+                        {
+                            if (!topo2.TietDiens.Any(t => t.Name == td.Name))
+                                topo2.TietDiens.Add(new TietDienData { Name = td.Name, Polyline = td.Polyline });
+                        }
+                        ucTopo2.RebuildUI();
+                        MessageBox.Show($"Đã tải {_tietDienLibrary.Count} tiết diện từ thư viện.", "Tải thành công",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    },
+                    onAddDoan: () => {
+                        string doanName = $"Đoạn {topo2.DoanDuongLos.Count + 1}";
+                        topo2.DoanDuongLos.Add(new DoanDuongLoData { Name = doanName });
+                        ucTopo2.RebuildUI();
+                    },
+                    onSelectDoanPolyline: (doan) => {
+                        this.Hide();
+                        var geoRef = _selectionService.SelectSinglePolyline($"Chọn đường cho '{doan.Name}'");
+                        this.Show();
+                        if (geoRef == null) return;
+                        if (IsDuplicatePolylineInTopo2(topo2, geoRef, excludeEntry: doan))
+                        {
+                            MessageBox.Show("Polyline này đã được dùng cho một tiết diện hoặc đoạn đường lò khác trong địa hình lò này.\nMỗi đoạn đường lò/tiết diện phải ứng với một polyline riêng biệt.",
+                                "Polyline trùng lặp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        doan.Polyline = geoRef;
+                        ucTopo2.RebuildUI();
+                    },
+                    onDeleteDoan: (doan) => {
+                        topo2.DoanDuongLos.Remove(doan);
+                        ucTopo2.RebuildUI();
+                    },
+                    onDelete: () => {
+                        _project.MineTopologies2.Remove(topo2);
+                        e.Node.Remove();
+                        rightPanel.Controls.Clear();
+                    },
+                    getTietDienLibrary: () => _tietDienLibrary
+                );
+                rightPanel.Controls.Add(ucTopo2);
             }
             else if (e.Node.Tag is GioiHanData gioiHan)
             {
@@ -567,6 +728,55 @@ namespace AutoCAD_NET_4_8_Framework
             }
         }
 
+        private void AddNewMineTopology2()
+        {
+            string name = $"Đường lò L2 {_project.MineTopologies2.Count + 1}";
+            var newTopo2 = new MineTopologyLoai2Data { Name = name };
+            _project.MineTopologies2.Add(newTopo2);
+
+            TreeNode node = new TreeNode(name);
+            node.Tag = newTopo2;
+
+            if (treeView != null)
+            {
+                foreach (TreeNode n in treeView.Nodes)
+                {
+                    if (n.Tag as string == "RootMineTopologies")
+                    {
+                        n.Nodes.Add(node);
+                        n.Expand();
+                        break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks whether <paramref name="geoRef"/> (identified by Handle + source drawing)
+        /// is already assigned to another Tiết diện or Đoạn đường lò within this same
+        /// địa hình lò entry. Every polyline in a Loại 2 topology must be unique — a tunnel
+        /// segment or cross-section reusing another one's geometry produces incorrect results.
+        /// Pass the entry currently being edited as <paramref name="excludeEntry"/> so re-picking
+        /// the same polyline it already has isn't flagged as a duplicate of itself.
+        /// </summary>
+        private static bool IsDuplicatePolylineInTopo2(MineTopologyLoai2Data topo2, GeometryReference geoRef, object excludeEntry = null)
+        {
+            if (geoRef == null) return false;
+
+            bool SamePolyline(GeometryReference other) =>
+                other != null
+                && other.Handle == geoRef.Handle
+                && other.SourceDwgPath == geoRef.SourceDwgPath;
+
+            foreach (var td in topo2.TietDiens)
+                if (!ReferenceEquals(td, excludeEntry) && SamePolyline(td.Polyline)) return true;
+
+            foreach (var d in topo2.DoanDuongLos)
+                if (!ReferenceEquals(d, excludeEntry) && SamePolyline(d.Polyline)) return true;
+
+            return false;
+        }
+
         private void AddNewGioiHan()
         {
             string ghName = $"Giới hạn {_project.GioiHans.Count + 1}";
@@ -660,6 +870,7 @@ namespace AutoCAD_NET_4_8_Framework
                             || e.Node.Tag is BeMatData
                             || e.Node.Tag is BoreholeData
                             || e.Node.Tag is MineTopologyData
+                            || e.Node.Tag is MineTopologyLoai2Data
                             || e.Node.Tag is GioiHanData;
 
             if (isDeletable)
@@ -687,6 +898,8 @@ namespace AutoCAD_NET_4_8_Framework
                         _project.Boreholes.Remove(borehole);
                     else if (e.Node.Tag is MineTopologyData topo)
                         _project.MineTopologies.Remove(topo);
+                    else if (e.Node.Tag is MineTopologyLoai2Data topo2)
+                        _project.MineTopologies2.Remove(topo2);
                     else if (e.Node.Tag is GioiHanData gioiHan)
                         _project.GioiHans.Remove(gioiHan);
 
@@ -738,6 +951,8 @@ namespace AutoCAD_NET_4_8_Framework
                 borehole.Name = newName;
             else if (node.Tag is MineTopologyData topo)
                 topo.Name = newName;
+            else if (node.Tag is MineTopologyLoai2Data topo2)
+                topo2.Name = newName;
             else if (node.Tag is GioiHanData gioiHan)
                 gioiHan.Name = newName;
             else if (node.Tag is GioiHanKhoiData gioiHanKhoi)
@@ -810,6 +1025,7 @@ namespace AutoCAD_NET_4_8_Framework
                 case "Nham thạch": return _project.Rocks.Select(r => r.Name).ToList();
                 case "Lỗ khoan": return _project.Boreholes.Select(b => b.Name).ToList();
                 case "Địa hình lò": return _project.MineTopologies.Select(t => t.Name).ToList();
+                case "Địa hình lò Loại 2": return _project.MineTopologies2.Select(t => t.Name).ToList();
                 case "Giới hạn": return _project.GioiHans.Select(g => g.Name).ToList();
                 default: return new List<string>();
             }
@@ -931,6 +1147,13 @@ namespace AutoCAD_NET_4_8_Framework
             {
                 TreeNode node = new TreeNode(topo.Name);
                 node.Tag = topo;
+                rootMineTopologies.Nodes.Add(node);
+            }
+
+            foreach (var topo2 in _project.MineTopologies2)
+            {
+                TreeNode node = new TreeNode(topo2.Name);
+                node.Tag = topo2;
                 rootMineTopologies.Nodes.Add(node);
             }
 

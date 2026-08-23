@@ -17,11 +17,17 @@ namespace MyMiningPlugin.Services
         {
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string projectFolder = Path.Combine(appData, "MyMiningPlugin");
-            
+
             if (!Directory.Exists(projectFolder))
                 Directory.CreateDirectory(projectFolder);
-            
+
             return Path.Combine(projectFolder, "MiningProject.json");
+        }
+
+        private string GetTietDienLibraryPath()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return Path.Combine(appData, "MyMiningPlugin", "TietDienLibrary.json");
         }
 
         public void SaveProjectData(MiningProject project)
@@ -66,6 +72,17 @@ namespace MyMiningPlugin.Services
                     {
                         b.Name,
                         Surface = SerializeSurfaceData(b.Surface)
+                    }).ToList(),
+                    MineTopologies2 = project.MineTopologies2.Select(t2 => new
+                    {
+                        t2.Name,
+                        TietDiens = t2.TietDiens.Select(td => SerializeGeoRef(td.Polyline, td.Name)).ToList(),
+                        DoanDuongLos = t2.DoanDuongLos.Select(d => new
+                        {
+                            d.Name,
+                            Polyline = d.Polyline != null ? SerializeGeoRef(d.Polyline) : null,
+                            d.TietDienName
+                        }).ToList()
                     }).ToList()
                 };
 
@@ -202,6 +219,42 @@ namespace MyMiningPlugin.Services
                     }
                 }
 
+                // Reconstruct MineTopologies2
+                if (projectData.MineTopologies2 != null)
+                {
+                    foreach (var t2Data in projectData.MineTopologies2)
+                    {
+                        var t2 = new MineTopologyLoai2Data { Name = t2Data.Name.ToString() };
+
+                        if (t2Data.TietDiens != null)
+                        {
+                            foreach (var tdItem in t2Data.TietDiens)
+                            {
+                                t2.TietDiens.Add(new TietDienData
+                                {
+                                    Name     = tdItem.TietDienName != null ? tdItem.TietDienName.ToString() : "",
+                                    Polyline = DeserializeGeoRef(tdItem)
+                                });
+                            }
+                        }
+
+                        if (t2Data.DoanDuongLos != null)
+                        {
+                            foreach (var dData in t2Data.DoanDuongLos)
+                            {
+                                t2.DoanDuongLos.Add(new DoanDuongLoData
+                                {
+                                    Name         = dData.Name.ToString(),
+                                    Polyline     = dData.Polyline != null ? DeserializeGeoRef(dData.Polyline) : null,
+                                    TietDienName = dData.TietDienName != null ? dData.TietDienName.ToString() : null
+                                });
+                            }
+                        }
+
+                        project.MineTopologies2.Add(t2);
+                    }
+                }
+
                 if (!silent)
                     MessageBox.Show($"Đã tải dự án từ:\n{path}", "Tải thành công",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -292,7 +345,7 @@ namespace MyMiningPlugin.Services
         private List<GeometryReference> DeserializeGeometryReferences(dynamic geoList)
         {
             List<GeometryReference> result = new List<GeometryReference>();
-            
+
             foreach (var geoData in geoList)
             {
                 result.Add(new GeometryReference
@@ -306,7 +359,85 @@ namespace MyMiningPlugin.Services
                     CurrentObjectId = null // Will be resolved when needed
                 });
             }
-            
+
+            return result;
+        }
+
+        // ---------------------------------------------------------------
+        // Single GeometryReference helpers (for TietDien / DoanDuongLo)
+        // ---------------------------------------------------------------
+
+        private object SerializeGeoRef(GeometryReference g, string tietDienName = null)
+        {
+            if (g == null) return null;
+            return new
+            {
+                g.Handle,
+                g.SourceDwgPath,
+                g.SourceDwgName,
+                g.Layer,
+                g.EntityType,
+                g.VertexCount,
+                TietDienName = tietDienName   // only populated for TietDien entries
+            };
+        }
+
+        private GeometryReference DeserializeGeoRef(dynamic d)
+        {
+            if (d == null) return null;
+            return new GeometryReference
+            {
+                Handle        = d.Handle        != null ? d.Handle.ToString()        : "",
+                SourceDwgPath = d.SourceDwgPath != null ? d.SourceDwgPath.ToString() : "",
+                SourceDwgName = d.SourceDwgName != null ? d.SourceDwgName.ToString() : "",
+                Layer         = d.Layer         != null ? d.Layer.ToString()         : "",
+                EntityType    = d.EntityType    != null ? d.EntityType.ToString()    : "",
+                VertexCount   = d.VertexCount   != null ? (int)d.VertexCount         : 0,
+                CurrentObjectId = null
+            };
+        }
+
+        // ---------------------------------------------------------------
+        // Tiết diện Library  (global, cross-project)
+        // ---------------------------------------------------------------
+
+        public void SaveTietDienLibrary(List<TietDienData> library)
+        {
+            try
+            {
+                var data = library.Select(td => SerializeGeoRef(td.Polyline, td.Name)).ToList();
+                File.WriteAllText(GetTietDienLibraryPath(),
+                    JsonConvert.SerializeObject(data, Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi lưu thư viện Tiết diện: {ex.Message}", "Lỗi",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        public List<TietDienData> LoadTietDienLibrary()
+        {
+            var result = new List<TietDienData>();
+            try
+            {
+                string path = GetTietDienLibraryPath();
+                if (!File.Exists(path)) return result;
+
+                dynamic list = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(path));
+                foreach (var item in list)
+                {
+                    result.Add(new TietDienData
+                    {
+                        Name     = item.TietDienName != null ? item.TietDienName.ToString() : "",
+                        Polyline = DeserializeGeoRef(item)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadTietDienLibrary error: {ex.Message}");
+            }
             return result;
         }
     }
