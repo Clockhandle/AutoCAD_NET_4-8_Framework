@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using ExcelDataReader;
 using MyMiningPlugin.Models;
-using Newtonsoft.Json;
 
 namespace MyMiningPlugin.Services
 {
@@ -121,13 +120,6 @@ namespace MyMiningPlugin.Services
                         }
                     }
                 }
-
-                // Temporary JSON Dump for verification
-                string tempJsonPath = Path.Combine(Path.GetDirectoryName(filePath), "Test_Boreholes_All.json");
-                string jsonOutput = JsonConvert.SerializeObject(boreholes.Values.ToList(), Formatting.Indented);
-                File.WriteAllText(tempJsonPath, jsonOutput);
-                
-                System.Windows.Forms.MessageBox.Show($"Test Data Read and saved to:\n{tempJsonPath}", "Success", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
 
                 return boreholes.Values.ToList();
             }

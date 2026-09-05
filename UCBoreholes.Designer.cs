@@ -35,6 +35,7 @@
             this.txtBoxExcelPath = new System.Windows.Forms.TextBox();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.btnReadExcel = new System.Windows.Forms.Button();
+            this.lblDataSummary = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // btnDeleteBorehole
@@ -88,11 +89,22 @@
             this.btnReadExcel.Text = "Đọc file excel";
             this.btnReadExcel.UseVisualStyleBackColor = true;
             this.btnReadExcel.Click += new System.EventHandler(this.BtnSelectExcel_Click);
-            // 
+            //
+            // lblDataSummary
+            //
+            this.lblDataSummary.AutoSize = true;
+            this.lblDataSummary.ForeColor = System.Drawing.Color.DimGray;
+            this.lblDataSummary.Location = new System.Drawing.Point(160, 96);
+            this.lblDataSummary.Name = "lblDataSummary";
+            this.lblDataSummary.Size = new System.Drawing.Size(129, 13);
+            this.lblDataSummary.TabIndex = 12;
+            this.lblDataSummary.Text = "Chưa đọc dữ liệu từ Excel";
+            //
             // UCBoreholes
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.Controls.Add(this.lblDataSummary);
             this.Controls.Add(this.btnReadExcel);
             this.Controls.Add(this.txtBoxExcelPath);
             this.Controls.Add(this.btnDeleteBorehole);
@@ -112,5 +124,6 @@
         private System.Windows.Forms.TextBox txtBoxExcelPath;
         private System.Windows.Forms.ContextMenuStrip contextMenuStrip1;
         private System.Windows.Forms.Button btnReadExcel;
+        private System.Windows.Forms.Label lblDataSummary;
     }
 }

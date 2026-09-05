@@ -1,0 +1,190 @@
+SESSION NOTES — EXPORT/SERVER AUDIT + CDT JUNCTION TROUBLESHOOTING
+Saved: 2026-09-04 (session started 2026-09-03)
+Repo: AutoCAD_NET_4-8_Framework (branch: bucket-test)
+
+This file is a reference summary of a working session, for use as context
+in a follow-up conversation. Two topics were covered:
+  PART 1 — Export-to-JSON vs Send-to-Server dataset audit (completed)
+  PART 2 — CDT/triangulation junction-rendering bug (open, brainstorm only,
+            no code changes made)
+
+=================================================================
+PART 1 — EXPORT (JSON) vs SEND TO SERVER — DATASET AUDIT
+=================================================================
+Original ask: check both export paths (export-to-JSON-file and
+send-to-server), across all data categories, for dataset mismatches.
+Noted caveat to leave alone: "boreholes ... send to server allows us to
+assign date to the data sent."
+
+Files reviewed: Services/ExportService.cs, Services/
+GeometryProcessingService.cs, UI/ExportDialogs.cs, MiningManagerDForm.cs,
+UI_Events.cs (+ Designer), Models/MiningDataModels.cs.
+
+--- Architecture finding (good news) ---
+ExportToFile() and SendToServer() (ExportService.cs:82 and :325) both
+call the SAME GenerateCombinedJsonPayload() (:31) for every category:
+Vỉa, Đứt gãy, Nham thạch, Lỗ khoan, Bề mặt, Địa hình lò,
+Địa hình lò Loại 2, Giới hạn.
+No duplicate JSON-building code for the server path -> for a given
+selection, the two outputs are structurally guaranteed to match.
+
+--- The one place they actually diverge — NOT boreholes ---
+Only the `date` parameter differs, and it's wired ONLY for "Địa hình lò"
+(Mine Topology loại 1):
+  - ExportDialogs.cs:64  -> date picker only shown when category ==
+                            "Địa hình lò"
+  - ExportService.cs:230 -> ExportToFile() never passes `date` -> JSON
+                            file exports of Địa hình lò always get
+                            "Date": null
+  - ExportService.cs:342 -> SendToServer() passes through the picked date
+Checked BoreholeData / DepthInterval / SurveyReading
+(Models/MiningDataModels.cs:72-98) and the borehole send dialog:
+THERE IS NO DATE FIELD ANYWHERE FOR BOREHOLES today, in the dialog or the
+model. The date-assignment behavior described in the ask matches Địa
+hình lò, not boreholes, as currently implemented. Mine-topology date
+logic was left untouched per the "leave alone" instruction; flagged the
+naming discrepancy for the user to confirm/clarify later — not yet
+resolved.
+
+--- Real bugs found (not yet fixed — user said "just report for now") ---
+[BUG 1] CountTotalLines() and the diagnostic switch in ExportToFile()
+are missing a case for "Địa hình lò Loại 2" (ExportService.cs:567-632
+and :95-228). Effect: JSON export of Loại 2 works, but the success
+dialog always shows "Tổng số lines: 0" for it, and an empty Loại 2
+selection won't get the specific diagnostic message other categories get.
+
+[BUG 2] SendToServer() has no "empty data" pre-check, unlike
+ExportToFile() (:236-258). Effect: if geometry didn't resolve,
+ExportToFile() catches it locally with details of what failed;
+SendToServer() silently POSTs an empty/near-empty JSON array with no
+local warning. Likely explanation for "export to JSON usually works" —
+it's not a dataset content difference, it's that only the file path
+checks for broken selections before anything leaves the machine.
+
+[NOTE] Schema not fully uniform across categories (same in both output
+paths, so not a JSON-vs-server issue): CreateGioiHanItem (:765) omits
+"IsHole" that every other category's item includes; Bề mặt items key
+the name as "ViaName" instead of "Name" (:500-516).
+
+--- Dead code (not a live risk) ---
+UI_Events.cs / UI_Events.Designer.cs contain a separate, older
+seam/roof/floor/fault-only export+upload pipeline hitting a DIFFERENT
+endpoint (/api/cad-data vs the live /api/cad-upload). Confirmed via
+CommandMethod search that only OPENMINETERRA / OMT are registered
+(MainLoader.cs), both opening MiningManagerDForm. UI_Events is never
+instantiated anywhere -> cannot run today. Recommended deleting it so
+nobody edits it thinking it's live.
+
+--- Open items from Part 1 ---
+- Fix BUG 1 (missing Loại 2 case in CountTotalLines + diagnostics).
+- Fix BUG 2 (add empty-data guard to SendToServer, matching ExportToFile).
+- Decide whether borehole send-to-server should get a date field, or
+  whether the original description meant Địa hình lò.
+- Decide whether to delete UI_Events.cs/.Designer.cs.
+- Optional: normalize per-category field schema (IsHole, Name vs
+  ViaName) if the server consumer wants one uniform item shape.
+
+(A standalone copy of this section was also saved and sent as
+Export_Server_JSON_Audit_2026-09-03.txt in the same folder.)
+
+=================================================================
+PART 2 — CDT/TRIANGULATION JUNCTION RENDERING BUG (brainstorm, open)
+=================================================================
+Problem as described by user:
+- Existing QA workflow: in CAD, select both endpoints at a suspected
+  junction and drag to see whether they move together (real coincident
+  junction) or only one end moves (real gap/error). This catches ~99%
+  of problems.
+- Special cases: endpoints DO move together under the drag test (so it
+  looks like a real junction), the DQ check reports no errors, but the
+  downstream Constrained Delaunay Triangulation (CDT) render still
+  fails to render that area correctly.
+- Happens even at simple two-line junctions, not only multi-line/group
+  junctions.
+- Mysteriously, manually "untangling" every junction point and
+  rejoining them fixes the rendering.
+- The actual CDT/render engine is NOT in this repo (confirmed via
+  search — no "Delaunay"/"Triangulat"/"CDT" hits outside comments in
+  DataQualityService.cs) — it runs on a separate server/render app.
+
+Relevant existing-code context found during this session:
+- The DataQualityService.cs refactor sitting uncommitted in the working
+  tree at the time of discussion REPLACED the old 5-check system
+  (Check1_UnsetZ .. Check5_NearMissBreaklineEndpoints) with a single
+  CheckXYCrossings check that only detects segments that literally
+  cross in the XY plane; Z is explicitly ignored.
+- The OLD Check5_NearMissBreaklineEndpoints (now removed) used
+  GapSnapEpsilon = 0.01 (1 cm) as its "already connected" cutoff — i.e.
+  even before the refactor, any gap smaller than 1 cm was NEVER
+  reported. So sub-centimeter / floating-point-level gaps have never
+  been visible to this tool, old or new version.
+- Net effect: a near-miss endpoint gap of, say, a millimeter or a
+  1e-6-level float drift has always been invisible to DQ, and is
+  invisible to the new crossing-only check by construction (segments
+  that don't literally cross produce no detection at all, regardless
+  of tolerance).
+
+Leading hypothesis (#1): coincidence-tolerance mismatch between CAD
+and the CDT engine, not an actual visible gap.
+- AutoCAD's grip system merges/stacks grips from different entities
+  into one draggable handle using AutoCAD's own (fairly loose, not
+  visually distinguishable) internal point tolerance. Two endpoints
+  moving together under a drag test only proves "AutoCAD considers
+  these the same point," not "these are bit-identical doubles."
+- Most CDT libraries do NOT do their own vertex welding — they expect
+  pre-deduplicated input and treat two points differing even in the
+  low bits of a double as distinct vertices.
+- If two "coincident" endpoints match to ~1e-6 but not to ~1e-12, CAD
+  calls them the same point; a naive/exact CDT does not — producing a
+  sliver/degenerate triangle or a constraint edge that fails to
+  connect exactly where expected. This matches "wrong render right at
+  that junction" rather than a totally missing region.
+- Explains why manual untangle + rejoin fixes it: whatever rejoin
+  operation is used (PEDIT Join, explicit endpoint snap, etc.) forces a
+  bit-exact merge, doing by hand what the pipeline should do
+  automatically.
+- Explains "99% fine, occasional unexplained miss": drift is
+  introduced sporadically by prior operations (JOIN, OFFSET, block
+  insert with transform, unit conversion round-trips, DWG<->DXF
+  export/import), not by every junction.
+- Explains "even two-line junctions fail": has nothing to do with how
+  many lines meet at a point — it's about whether that specific pair
+  of vertices happened to drift apart in the low bits.
+
+Leading hypothesis (#2, non-exclusive): near-degenerate junction angle.
+- Independent of coincidence: if edges meet at a very shallow/near-
+  collinear/near-tangent angle, CDT's orientation/incircle predicates
+  become numerically unstable right at that vertex even with perfect
+  coincidence (determinant close to zero -> classic sliver-triangle
+  failure mode in triangulation libraries).
+- Worth checking whether known-bad junctions also have a shallow entry
+  angle between the meeting lines — a second, distinct effect that
+  manual rejoining could incidentally also be fixing (e.g. by nudging
+  vertex order/direction).
+
+Proposed next steps (not yet started, none of this code exists yet):
+1. Write a standalone diagnostic script: given an exported JSON (or a
+   live CAD selection), compute exact XY/Z deltas between every pair of
+   polyline endpoints across different Handles; bucket by magnitude
+   (exact / <1e-9 / <1e-6 / <1e-3 / <1cm / more). If problem junctions
+   cluster in the "visually zero but not exactly zero" bucket, that
+   directly confirms Hypothesis #1.
+2. Next time an unresolved bad-junction case exists, capture its raw
+   coordinates BEFORE manually fixing it, and diff the doubles — fastest
+   way to settle which hypothesis (or something else) is the actual
+   cause.
+3. Add a real near-miss/weld DQ check back into DataQualityService.cs,
+   with a tolerance small enough to catch sub-cm/sub-mm drift (the old
+   1 cm floor was too coarse) — surfaces this as a warning instead of a
+   silent render failure.
+4. Or go further: auto-weld in GeometryProcessingService.cs — after
+   extraction, cluster all polyline endpoints within a tight tolerance
+   and snap them to one exact coordinate before JSON is built. Fixes it
+   at the source for both export paths at once (since they share
+   GenerateCombinedJsonPayload — see Part 1), removing the need for
+   manual untangling.
+
+Status: purely a discussion/brainstorm — no diagnostic script, DQ check,
+or welding logic has been written yet. User said "not right now" to
+building the diagnostic tool; pick this up in a future session by
+referencing this file.

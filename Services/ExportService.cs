@@ -65,7 +65,7 @@ namespace MyMiningPlugin.Services
                     break;
 
                 case "Địa hình lò Loại 2":
-                    await ProcessMineTopologies2(project.MineTopologies2, selectedNames, mapName, flattenedItems);
+                    await ProcessMineTopologies2(project.MineTopologies2, selectedNames, mapName, flattenedItems, date);
                     break;
 
                 case "Giới hạn":
@@ -87,145 +87,8 @@ namespace MyMiningPlugin.Services
                 ResolveAllGeometryReferences(category, selectedNames, project);
                 
                 // Add diagnostic info before generating JSON
-                int totalGeometryCount = 0;
-                int resolvedGeometryCount = 0;
-                string debugDetails = "";
-                
-                // Diagnostic for ALL categories
-                switch (category)
-                {
-                    case "Vỉa":
-                        debugDetails += $"Số Vỉa trong project: {project.Vias.Count}\n";
-                        foreach (var name in selectedNames)
-                        {
-                            var via = project.Vias.FirstOrDefault(v => v.Name == name);
-                            if (via != null)
-                            {
-                                debugDetails += $"- Vỉa '{via.Name}': {via.Blocks.Count} blocks\n";
-                                foreach (var khoi in via.Blocks)
-                                {
-                                    int vachCount = khoi.Vach.SelectedGeometry.Count;
-                                    int vachResolvedCount = khoi.Vach.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                    int truCount = khoi.Tru.SelectedGeometry.Count;
-                                    int truResolvedCount = khoi.Tru.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                    debugDetails += $"  - {khoi.Name}: Vách={vachCount} (resolved={vachResolvedCount}), Trụ={truCount} (resolved={truResolvedCount})\n";
-                                    totalGeometryCount += vachCount + truCount;
-                                    resolvedGeometryCount += vachResolvedCount + truResolvedCount;
-                                }
-                            }
-                            else
-                            {
-                                debugDetails += $"- Vỉa '{name}': KHÔNG TÌM THẤY!\n";
-                            }
-                        }
-                        break;
-
-                    case "Đứt gãy":
-                        debugDetails += $"Số Đứt gãy trong project: {project.Faults.Count}\n";
-                        foreach (var name in selectedNames)
-                        {
-                            var fault = project.Faults.FirstOrDefault(f => f.Name == name);
-                            if (fault != null)
-                            {
-                                int count = fault.Surface.SelectedGeometry.Count;
-                                int resolvedCount = fault.Surface.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                debugDetails += $"- Đứt gãy '{fault.Name}': {count} lines (resolved={resolvedCount})\n";
-                                totalGeometryCount += count;
-                                resolvedGeometryCount += resolvedCount;
-                            }
-                        }
-                        break;
-
-                    case "Nham thạch":
-                        debugDetails += $"Số Nham thạch trong project: {project.Rocks.Count}\n";
-                        foreach (var name in selectedNames)
-                        {
-                            var rock = project.Rocks.FirstOrDefault(r => r.Name == name);
-                            if (rock != null)
-                            {
-                                int count = rock.Surface.SelectedGeometry.Count;
-                                int resolvedCount = rock.Surface.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                debugDetails += $"- Nham thạch '{rock.Name}': {count} lines (resolved={resolvedCount})\n";
-                                totalGeometryCount += count;
-                                resolvedGeometryCount += resolvedCount;
-                            }
-                        }
-                        break;
-
-                    case "Lỗ khoan":
-                        debugDetails += $"Số Lỗ khoan trong project: {project.Boreholes.Count}\n";
-                        foreach (var name in selectedNames)
-                        {
-                            var borehole = project.Boreholes.FirstOrDefault(b => b.Name == name);
-                            if (borehole != null)
-                            {
-                                int count = borehole.Trajectory.Count; // Count survey points
-                                int resolvedCount = count; // Always resolved for Excel data
-                                debugDetails += $"- Lỗ khoan '{borehole.Name}': {count} survey points\n";
-                                totalGeometryCount += count;
-                                resolvedGeometryCount += resolvedCount;
-                            }
-                        }
-                        break;
-
-                    case "Bề mặt":
-                        debugDetails += $"Số Bề mặt trong project: {project.BeMats.Count}\n";
-                        foreach (var name in selectedNames)
-                        {
-                            var bemat = project.BeMats.FirstOrDefault(b => b.Name == name);
-                            if (bemat != null)
-                            {
-                                int count = bemat.Surface.SelectedGeometry.Count;
-                                int resolvedCount = bemat.Surface.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                debugDetails += $"- Bề mặt '{bemat.Name}': {count} lines (resolved={resolvedCount})\n";
-                                totalGeometryCount += count;
-                                resolvedGeometryCount += resolvedCount;
-                            }
-                        }
-                        break;
-
-                    case "Địa hình lò":
-                        debugDetails += $"Số Địa hình lò trong project: {project.MineTopologies.Count}\n";
-                        foreach (var name in selectedNames)
-                        {
-                            var topo = project.MineTopologies.FirstOrDefault(t => t.Name == name);
-                            if (topo != null)
-                            {
-                                int nenCount  = topo.Nen.Count;
-                                int nocCount  = topo.Noc.Count;
-                                int bienCount = topo.Bien.Count;
-                                int nenResolved  = topo.Nen.Count(g  => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                int nocResolved  = topo.Noc.Count(g  => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                int bienResolved = topo.Bien.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                debugDetails += $"- '{topo.Name}': Nền={nenCount}(r={nenResolved}), Nóc={nocCount}(r={nocResolved}), Biên={bienCount}(r={bienResolved})\n";
-                                totalGeometryCount   += nenCount + nocCount + bienCount;
-                                resolvedGeometryCount += nenResolved + nocResolved + bienResolved;
-                            }
-                        }
-                        break;
-
-                    case "Giới hạn":
-                        debugDetails += $"Số Giới hạn trong project: {project.GioiHans.Count}\n";
-                        foreach (var name in selectedNames)
-                        {
-                            var gh = project.GioiHans.FirstOrDefault(g => g.Name == name);
-                            if (gh != null)
-                            {
-                                debugDetails += $"- Giới hạn '{gh.Name}': {gh.Blocks.Count} vùng\n";
-                                foreach (var khoi in gh.Blocks)
-                                {
-                                    int vachCount = khoi.Vach.SelectedGeometry.Count;
-                                    int vachResolved = khoi.Vach.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                    int truCount = khoi.Tru.SelectedGeometry.Count;
-                                    int truResolved = khoi.Tru.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
-                                    debugDetails += $"  - {khoi.Name}: Vách={vachCount}(r={vachResolved}), Trụ={truCount}(r={truResolved})\n";
-                                    totalGeometryCount   += vachCount + truCount;
-                                    resolvedGeometryCount += vachResolved + truResolved;
-                                }
-                            }
-                        }
-                        break;
-                }
+                var (totalGeometryCount, resolvedGeometryCount, debugDetails) =
+                    BuildDiagnosticInfo(category, selectedNames, project);
 
                 string json = await GenerateCombinedJsonPayload(category, selectedNames, mapName, project);
 
@@ -294,10 +157,17 @@ namespace MyMiningPlugin.Services
             foreach (var name in selectedNames)
             {
                 var bemat = bemats.FirstOrDefault(b => b.Name == name);
-                if (bemat == null || bemat.Surface.SelectedGeometry.Count == 0) continue;
+                if (bemat == null) continue;
+
+                var surf = bemat.Surface;
+                bool hasAnyGeometry = surf.SelectedGeometry.Count > 0
+                    || surf.BoundaryGeometry.Count > 0
+                    || surf.HoleGeometry.Count > 0
+                    || surf.BreaklineGeometry.Count > 0;
+                if (!hasAnyGeometry) continue;
 
                 var (_, issues) = await _geometryProcessor
-                    .ProcessGeometryWithQualityChecks(bemat.Surface);
+                    .ProcessGeometryWithQualityChecks(surf);
                 allIssues.AddRange(issues);
             }
 
@@ -336,7 +206,37 @@ namespace MyMiningPlugin.Services
 
                 // null means quality checks blocked the export (errors found, markers placed)
                 if (json == null) return;
-                
+
+                // BUG 2 fix: ExportToFile already caught an empty/unresolved selection
+                // locally with details of what failed; SendToServer used to skip straight
+                // to POSTing an empty JSON array with no local warning. Same guard here.
+                if (json == "[]" || json == "[\r\n]" || json == "[\n]")
+                {
+                    var (totalGeometryCount, resolvedGeometryCount, debugDetails) =
+                        BuildDiagnosticInfo(category, selectedNames, project);
+
+                    string debugMsg = $"Không có dữ liệu để gửi lên server!\n\n";
+                    debugMsg += $"Debug Info:\n";
+                    debugMsg += $"- Tổng số geometry đã chọn: {totalGeometryCount}\n";
+                    debugMsg += $"- Geometry đã resolve: {resolvedGeometryCount}\n";
+                    debugMsg += $"- JSON generated: {json.Length} chars\n\n";
+                    debugMsg += $"Chi tiết:\n{debugDetails}\n";
+                    debugMsg += $"Vui lòng kiểm tra:\n";
+                    if (resolvedGeometryCount == 0 && totalGeometryCount > 0)
+                    {
+                        debugMsg += $"- ⚠ Các đường đã chọn KHÔNG CÓ trong file DWG hiện tại!\n";
+                        debugMsg += $"- Hãy mở lại file DWG gốc hoặc chọn lại các đường\n";
+                    }
+                    else
+                    {
+                        debugMsg += $"- Đường đã chọn có trong file DWG hiện tại không?\n";
+                        debugMsg += $"- Thử đóng và mở lại form, sau đó export lại\n";
+                    }
+
+                    MessageBox.Show(debugMsg, "Không có dữ liệu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 await Task.Run(async () =>
@@ -462,9 +362,32 @@ namespace MyMiningPlugin.Services
             foreach (var name in selectedNames)
             {
                 var borehole = boreholes.FirstOrDefault(b => b.Name == name);
-                if (borehole != null)
+                if (borehole == null) continue;
+
+                if (borehole.ImportedBoreholes != null && borehole.ImportedBoreholes.Count > 0)
                 {
-                    // Adding simple payload for Borehole
+                    // Bulk-Excel-import node — this one selected name expands into every LK
+                    // read from its workbook, all tagged with GroupName = this node's name.
+                    foreach (var imported in borehole.ImportedBoreholes)
+                    {
+                        flattenedItems.Add(new
+                        {
+                            MapName = mapName,
+                            GroupName = borehole.Name,
+                            Name = imported.Name,
+                            Type = "Lỗ khoan",
+                            ExcelFilePath = imported.ExcelFilePath,
+                            X = imported.X,
+                            Y = imported.Y,
+                            Z = imported.Z,
+                            Intervals = imported.Intervals,
+                            Trajectory = imported.Trajectory
+                        });
+                    }
+                }
+                else
+                {
+                    // Adding simple payload for a single, manually-managed Borehole
                     flattenedItems.Add(new
                     {
                         MapName = mapName,
@@ -557,6 +480,184 @@ namespace MyMiningPlugin.Services
             return item;
         }
 
+        /// <summary>
+        /// Builds the "how much geometry did we find / resolve" breakdown shown to the
+        /// user when a category export/send comes back empty. Shared by ExportToFile
+        /// and SendToServer so both paths report the same detail (previously
+        /// SendToServer had no such check at all — see BUG 2 in the export audit).
+        /// </summary>
+        private (int totalGeometryCount, int resolvedGeometryCount, string debugDetails) BuildDiagnosticInfo(
+            string category, List<string> selectedNames, MiningProject project)
+        {
+            int totalGeometryCount = 0;
+            int resolvedGeometryCount = 0;
+            string debugDetails = "";
+
+            switch (category)
+            {
+                case "Vỉa":
+                    debugDetails += $"Số Vỉa trong project: {project.Vias.Count}\n";
+                    foreach (var name in selectedNames)
+                    {
+                        var via = project.Vias.FirstOrDefault(v => v.Name == name);
+                        if (via != null)
+                        {
+                            debugDetails += $"- Vỉa '{via.Name}': {via.Blocks.Count} blocks\n";
+                            foreach (var khoi in via.Blocks)
+                            {
+                                int vachCount = khoi.Vach.SelectedGeometry.Count;
+                                int vachResolvedCount = khoi.Vach.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                int truCount = khoi.Tru.SelectedGeometry.Count;
+                                int truResolvedCount = khoi.Tru.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                debugDetails += $"  - {khoi.Name}: Vách={vachCount} (resolved={vachResolvedCount}), Trụ={truCount} (resolved={truResolvedCount})\n";
+                                totalGeometryCount += vachCount + truCount;
+                                resolvedGeometryCount += vachResolvedCount + truResolvedCount;
+                            }
+                        }
+                        else
+                        {
+                            debugDetails += $"- Vỉa '{name}': KHÔNG TÌM THẤY!\n";
+                        }
+                    }
+                    break;
+
+                case "Đứt gãy":
+                    debugDetails += $"Số Đứt gãy trong project: {project.Faults.Count}\n";
+                    foreach (var name in selectedNames)
+                    {
+                        var fault = project.Faults.FirstOrDefault(f => f.Name == name);
+                        if (fault != null)
+                        {
+                            int count = fault.Surface.SelectedGeometry.Count;
+                            int resolvedCount = fault.Surface.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                            debugDetails += $"- Đứt gãy '{fault.Name}': {count} lines (resolved={resolvedCount})\n";
+                            totalGeometryCount += count;
+                            resolvedGeometryCount += resolvedCount;
+                        }
+                    }
+                    break;
+
+                case "Nham thạch":
+                    debugDetails += $"Số Nham thạch trong project: {project.Rocks.Count}\n";
+                    foreach (var name in selectedNames)
+                    {
+                        var rock = project.Rocks.FirstOrDefault(r => r.Name == name);
+                        if (rock != null)
+                        {
+                            int count = rock.Surface.SelectedGeometry.Count;
+                            int resolvedCount = rock.Surface.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                            debugDetails += $"- Nham thạch '{rock.Name}': {count} lines (resolved={resolvedCount})\n";
+                            totalGeometryCount += count;
+                            resolvedGeometryCount += resolvedCount;
+                        }
+                    }
+                    break;
+
+                case "Lỗ khoan":
+                    debugDetails += $"Số Lỗ khoan trong project: {project.Boreholes.Count}\n";
+                    foreach (var name in selectedNames)
+                    {
+                        var borehole = project.Boreholes.FirstOrDefault(b => b.Name == name);
+                        if (borehole != null)
+                        {
+                            // A bulk-import node's own Trajectory is empty — its data lives in
+                            // ImportedBoreholes, one set per LK read from its workbook.
+                            int count = borehole.ImportedBoreholes != null && borehole.ImportedBoreholes.Count > 0
+                                ? borehole.ImportedBoreholes.Sum(b => b.Trajectory.Count)
+                                : borehole.Trajectory.Count; // Count survey points
+                            int resolvedCount = count; // Always resolved for Excel data
+                            debugDetails += $"- Lỗ khoan '{borehole.Name}': {count} survey points\n";
+                            totalGeometryCount += count;
+                            resolvedGeometryCount += resolvedCount;
+                        }
+                    }
+                    break;
+
+                case "Bề mặt":
+                    debugDetails += $"Số Bề mặt trong project: {project.BeMats.Count}\n";
+                    foreach (var name in selectedNames)
+                    {
+                        var bemat = project.BeMats.FirstOrDefault(b => b.Name == name);
+                        if (bemat != null)
+                        {
+                            int count = bemat.Surface.SelectedGeometry.Count;
+                            int resolvedCount = bemat.Surface.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                            debugDetails += $"- Bề mặt '{bemat.Name}': {count} lines (resolved={resolvedCount})\n";
+                            totalGeometryCount += count;
+                            resolvedGeometryCount += resolvedCount;
+                        }
+                    }
+                    break;
+
+                case "Địa hình lò":
+                    debugDetails += $"Số Địa hình lò trong project: {project.MineTopologies.Count}\n";
+                    foreach (var name in selectedNames)
+                    {
+                        var topo = project.MineTopologies.FirstOrDefault(t => t.Name == name);
+                        if (topo != null)
+                        {
+                            int nenCount  = topo.Nen.Count;
+                            int nocCount  = topo.Noc.Count;
+                            int bienCount = topo.Bien.Count;
+                            int nenResolved  = topo.Nen.Count(g  => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                            int nocResolved  = topo.Noc.Count(g  => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                            int bienResolved = topo.Bien.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                            debugDetails += $"- '{topo.Name}': Nền={nenCount}(r={nenResolved}), Nóc={nocCount}(r={nocResolved}), Biên={bienCount}(r={bienResolved})\n";
+                            totalGeometryCount   += nenCount + nocCount + bienCount;
+                            resolvedGeometryCount += nenResolved + nocResolved + bienResolved;
+                        }
+                    }
+                    break;
+
+                // BUG 1 fix: this case was missing entirely, so ExportToFile's success
+                // dialog always showed "Tổng số lines: 0" for Loại 2, and an empty/broken
+                // Loại 2 selection got no diagnostic detail here either.
+                case "Địa hình lò Loại 2":
+                    debugDetails += $"Số Địa hình lò Loại 2 trong project: {project.MineTopologies2.Count}\n";
+                    foreach (var name in selectedNames)
+                    {
+                        var t2 = project.MineTopologies2.FirstOrDefault(t => t.Name == name);
+                        if (t2 != null)
+                        {
+                            int tietDienCount = t2.TietDiens.Count;
+                            int tietDienResolved = t2.TietDiens.Count(td => td.Polyline != null &&
+                                td.Polyline.CurrentObjectId.HasValue && !td.Polyline.CurrentObjectId.Value.IsNull);
+                            int doanCount = t2.DoanDuongLos.Count;
+                            int doanResolved = t2.DoanDuongLos.Count(d => d.Polyline != null &&
+                                d.Polyline.CurrentObjectId.HasValue && !d.Polyline.CurrentObjectId.Value.IsNull);
+                            debugDetails += $"- '{t2.Name}': Tiết diện={tietDienCount}(r={tietDienResolved}), Đoạn đường lò={doanCount}(r={doanResolved})\n";
+                            totalGeometryCount   += tietDienCount + doanCount;
+                            resolvedGeometryCount += tietDienResolved + doanResolved;
+                        }
+                    }
+                    break;
+
+                case "Giới hạn":
+                    debugDetails += $"Số Giới hạn trong project: {project.GioiHans.Count}\n";
+                    foreach (var name in selectedNames)
+                    {
+                        var gh = project.GioiHans.FirstOrDefault(g => g.Name == name);
+                        if (gh != null)
+                        {
+                            debugDetails += $"- Giới hạn '{gh.Name}': {gh.Blocks.Count} vùng\n";
+                            foreach (var khoi in gh.Blocks)
+                            {
+                                int vachCount = khoi.Vach.SelectedGeometry.Count;
+                                int vachResolved = khoi.Vach.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                int truCount = khoi.Tru.SelectedGeometry.Count;
+                                int truResolved = khoi.Tru.SelectedGeometry.Count(g => g.CurrentObjectId.HasValue && !g.CurrentObjectId.Value.IsNull);
+                                debugDetails += $"  - {khoi.Name}: Vách={vachCount}(r={vachResolved}), Trụ={truCount}(r={truResolved})\n";
+                                totalGeometryCount   += vachCount + truCount;
+                                resolvedGeometryCount += vachResolved + truResolved;
+                            }
+                        }
+                    }
+                    break;
+            }
+
+            return (totalGeometryCount, resolvedGeometryCount, debugDetails);
+        }
+
         private int CountTotalLines(string category, List<string> selectedNames, MiningProject project)
         {
             int lineCount = 0;
@@ -594,7 +695,10 @@ namespace MyMiningPlugin.Services
                     foreach (var name in selectedNames)
                     {
                         var borehole = project.Boreholes.FirstOrDefault(b => b.Name == name);
-                        if (borehole != null) lineCount += borehole.Trajectory.Count; // sum the trajectory points
+                        if (borehole != null)
+                            lineCount += borehole.ImportedBoreholes != null && borehole.ImportedBoreholes.Count > 0
+                                ? borehole.ImportedBoreholes.Sum(b => b.Trajectory.Count)
+                                : borehole.Trajectory.Count; // sum the trajectory points
                     }
                     break;
                 case "Bề mặt":
@@ -609,6 +713,13 @@ namespace MyMiningPlugin.Services
                     {
                         var topo = project.MineTopologies.FirstOrDefault(t => t.Name == name);
                         if (topo != null) lineCount += topo.Nen.Count + topo.Noc.Count + topo.Bien.Count;
+                    }
+                    break;
+                case "Địa hình lò Loại 2":
+                    foreach (var name in selectedNames)
+                    {
+                        var t2 = project.MineTopologies2.FirstOrDefault(t => t.Name == name);
+                        if (t2 != null) lineCount += t2.TietDiens.Count + t2.DoanDuongLos.Count;
                     }
                     break;
                 case "Giới hạn":
@@ -837,8 +948,10 @@ namespace MyMiningPlugin.Services
 
         private async Task ProcessMineTopologies2(
             List<MineTopologyLoai2Data> topologies2, List<string> selectedNames,
-            string mapName, List<object> flattenedItems)
+            string mapName, List<object> flattenedItems, DateTime? date = null)
         {
+            string dateStr = date.HasValue ? date.Value.ToString("yyyy-MM-dd") : null;
+
             foreach (var name in selectedNames)
             {
                 var t2 = topologies2.FirstOrDefault(t => t.Name == name);
@@ -867,7 +980,7 @@ namespace MyMiningPlugin.Services
                             Name         = t2.Name,
                             Type         = "Địa hình lò Loại 2",
                             LayerType    = "TietDien",
-                            Date         = (string)null,
+                            Date         = dateStr,
                             IsClosed     = geo.IsClosed,
                             VertexCount  = geo.FlattenedVertices.Count,
                             FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList(),
@@ -900,7 +1013,7 @@ namespace MyMiningPlugin.Services
                             Name         = t2.Name,
                             Type         = "Địa hình lò Loại 2",
                             LayerType    = "DoanDuongLo",
-                            Date         = (string)null,
+                            Date         = dateStr,
                             IsClosed     = geo.IsClosed,
                             VertexCount  = geo.FlattenedVertices.Count,
                             FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList(),

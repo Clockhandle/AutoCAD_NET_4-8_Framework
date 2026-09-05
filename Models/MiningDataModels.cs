@@ -81,6 +81,13 @@ namespace MyMiningPlugin.Models
         
         public List<DepthInterval> Intervals { get; set; } = new List<DepthInterval>();
         public List<SurveyReading> Trajectory { get; set; } = new List<SurveyReading>();
+
+        // Populated when this node is a bulk-Excel-import container: every individual
+        // LK read from ExcelFilePath's workbook is stored here (each with its own
+        // Name/X/Y/Z/Intervals/Trajectory) instead of as its own top-level BoreholeData.
+        // Empty for a single manually-managed borehole (the X/Y/Z/Intervals/Trajectory
+        // above are used directly in that case).
+        public List<BoreholeData> ImportedBoreholes { get; set; } = new List<BoreholeData>();
     }
 
     public class DepthInterval

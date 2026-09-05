@@ -271,7 +271,28 @@ namespace AutoCAD_NET_4_8_Framework
                             MessageBox.Show("Vui lòng chọn file Excel hợp lệ trước.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
                         }
-                        try { MyMiningPlugin.Services.BoreholeExcelParser.ParseAllBoreholes(borehole.ExcelFilePath); }
+                        try
+                        {
+                            var parsed = MyMiningPlugin.Services.BoreholeExcelParser.ParseAllBoreholes(borehole.ExcelFilePath);
+                            if (parsed == null || parsed.Count == 0)
+                            {
+                                MessageBox.Show("Không đọc được lỗ khoan nào từ file Excel này.", "Không có dữ liệu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                return;
+                            }
+
+                            // This node IS the batch: everything read from its workbook is stored
+                            // as this borehole's ImportedBoreholes, not merged into _project.Boreholes
+                            // as separate top-level entries. So selecting just "borehole.Name" in the
+                            // Export/Send checklist sends/exports exactly this node's whole batch —
+                            // nothing from any other Lỗ khoan node bleeds in.
+                            borehole.ImportedBoreholes = parsed;
+
+                            MessageBox.Show(
+                                $"Đã đọc {parsed.Count} lỗ khoan từ file Excel vào '{borehole.Name}'.\n\n" +
+                                $"Dùng \"Gửi lên server\" hoặc \"Xuất JSON\" ở mục Lỗ khoan, chọn '{borehole.Name}', " +
+                                $"để gửi/xuất toàn bộ {parsed.Count} lỗ khoan này.",
+                                "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
                         catch (Exception ex) { MessageBox.Show($"Lỗi đọc file Excel:\n{ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error); }
                     },
                     onDelete: () => { e.Node.Remove(); _project.Boreholes.Remove(borehole); rightPanel.Controls.Clear(); }

@@ -66,7 +66,17 @@ namespace MyMiningPlugin.Services
                         b.Y,
                         b.Z,
                         b.Intervals,
-                        b.Trajectory
+                        b.Trajectory,
+                        ImportedBoreholes = b.ImportedBoreholes.Select(ib => new
+                        {
+                            ib.Name,
+                            ib.ExcelFilePath,
+                            ib.X,
+                            ib.Y,
+                            ib.Z,
+                            ib.Intervals,
+                            ib.Trajectory
+                        }).ToList()
                     }).ToList(),
                     BeMats = project.BeMats.Select(b => new
                     {
@@ -165,40 +175,12 @@ namespace MyMiningPlugin.Services
                 {
                     foreach (var boreholeData in projectData.Boreholes)
                     {
-                        BoreholeData borehole = new BoreholeData
-                        {
-                            Name = boreholeData.Name != null ? boreholeData.Name.ToString() : "",
-                            ExcelFilePath = boreholeData.ExcelFilePath != null ? boreholeData.ExcelFilePath.ToString() : "",
-                            X = boreholeData.X != null ? (double)boreholeData.X : 0,
-                            Y = boreholeData.Y != null ? (double)boreholeData.Y : 0,
-                            Z = boreholeData.Z != null ? (double)boreholeData.Z : 0,
-                            Intervals = new List<DepthInterval>(),
-                            Trajectory = new List<SurveyReading>()
-                        };
+                        BoreholeData borehole = DeserializeBoreholeLeaf(boreholeData);
 
-                        if (boreholeData.Intervals != null)
+                        if (boreholeData.ImportedBoreholes != null)
                         {
-                            foreach (var interval in boreholeData.Intervals)
-                            {
-                                borehole.Intervals.Add(new DepthInterval
-                                {
-                                    From = (double)interval.From,
-                                    To = (double)interval.To
-                                });
-                            }
-                        }
-
-                        if (boreholeData.Trajectory != null)
-                        {
-                            foreach (var traj in boreholeData.Trajectory)
-                            {
-                                borehole.Trajectory.Add(new SurveyReading
-                                {
-                                    DepthRange = (double)traj.DepthRange,
-                                    DO = (double)traj.DO,
-                                    PVI = (double)traj.PVI
-                                });
-                            }
+                            foreach (var importedData in boreholeData.ImportedBoreholes)
+                                borehole.ImportedBoreholes.Add(DeserializeBoreholeLeaf(importedData));
                         }
 
                         project.Boreholes.Add(borehole);
@@ -268,6 +250,54 @@ namespace MyMiningPlugin.Services
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             return null;
         }
+        }
+
+        /// <summary>
+        /// Reconstructs one BoreholeData "leaf" (Name/ExcelFilePath/X/Y/Z/Intervals/
+        /// Trajectory only — no ImportedBoreholes) from saved JSON. Shared by the
+        /// top-level Boreholes loop and each entry of a container's ImportedBoreholes,
+        /// which are saved in the same shape.
+        /// </summary>
+        private BoreholeData DeserializeBoreholeLeaf(dynamic boreholeData)
+        {
+            BoreholeData borehole = new BoreholeData
+            {
+                Name = boreholeData.Name != null ? boreholeData.Name.ToString() : "",
+                ExcelFilePath = boreholeData.ExcelFilePath != null ? boreholeData.ExcelFilePath.ToString() : "",
+                X = boreholeData.X != null ? (double)boreholeData.X : 0,
+                Y = boreholeData.Y != null ? (double)boreholeData.Y : 0,
+                Z = boreholeData.Z != null ? (double)boreholeData.Z : 0,
+                Intervals = new List<DepthInterval>(),
+                Trajectory = new List<SurveyReading>()
+            };
+
+            if (boreholeData.Intervals != null)
+            {
+                foreach (var interval in boreholeData.Intervals)
+                {
+                    borehole.Intervals.Add(new DepthInterval
+                    {
+                        From = (double)interval.From,
+                        To = (double)interval.To,
+                        SeamName = interval.SeamName != null ? interval.SeamName.ToString() : null
+                    });
+                }
+            }
+
+            if (boreholeData.Trajectory != null)
+            {
+                foreach (var traj in boreholeData.Trajectory)
+                {
+                    borehole.Trajectory.Add(new SurveyReading
+                    {
+                        DepthRange = (double)traj.DepthRange,
+                        DO = (double)traj.DO,
+                        PVI = (double)traj.PVI
+                    });
+                }
+            }
+
+            return borehole;
         }
 
         private object SerializeSurfaceData(SurfaceData surface)

@@ -19,6 +19,11 @@ namespace MyMiningPlugin.Services
         public readonly AutoCADSelectionService _selectionService;
         private readonly DataQualityService _qualityService = new DataQualityService();
 
+        // Endpoint-weld tolerance (drawing units). See WeldEndpoints() below for why
+        // this exists — keep small enough to only catch invisible float drift, not
+        // real small gaps a user drew on purpose.
+        private const double EndpointWeldTolerance = 0.001;
+
         public GeometryProcessingService(AutoCADSelectionService selectionService)
         {
             _selectionService = selectionService;
@@ -107,21 +112,14 @@ namespace MyMiningPlugin.Services
         /// the clipped geometry alongside any issues found.
         /// </summary>
         public Task<(List<CADObjectData> Geometry, List<QualityIssue> Issues)>
-            ProcessGeometryWithQualityChecks(
-                SurfaceData surface,
-                List<CADObjectData> terrainItems = null)
+            ProcessGeometryWithQualityChecks(SurfaceData surface)
         {
             // 1. Extract entities — NO clipping yet
             var raw = ExtractRawGeometry(surface);
 
-            // 2. Run all checks on raw data
-            //    terrainItems for Check 3: the caller can pass Vỉa/Khối lines;
-            //    if null we fall back to the surface's own non-boundary, non-breakline items.
-            var checkTerrain = terrainItems
-                ?? raw.Where(r => !r.IsBoundary && !r.IsHole && !r.IsBreakline).ToList();
-
+            // 2. Run quality checks (XY-crossing only) on the raw, pre-clip data
             var issues = surface.Type == "Bề mặt"
-                ? _qualityService.RunAllChecks(raw, checkTerrain)
+                ? _qualityService.RunAllChecks(raw)
                 : new List<QualityIssue>();
 
             // 3. Now apply the boundary clip in-place
@@ -227,7 +225,122 @@ namespace MyMiningPlugin.Services
                 System.Diagnostics.Debug.WriteLine(
                     $"ExtractRawGeometry: Processed {processedCount}, Skipped {skippedCount}");
 
+            WeldEndpoints(result, EndpointWeldTolerance);
+
             return result;
+        }
+
+        /// <summary>
+        /// Welds near-coincident polyline endpoints across every extracted entity.
+        ///
+        /// Rationale: the downstream CDT renderer (mesh_gen.cpp) only merges two
+        /// vertices when their coordinates compare EXACTLY equal as doubles. AutoCAD's
+        /// grip system uses a much looser internal tolerance, so two endpoints that
+        /// look and drag as "the same point" in CAD (the usual junction QA check) can
+        /// still differ in the low mantissa bits — from JOIN/OFFSET/block-transform/
+        /// DXF round-trips — and reach the renderer as two distinct vertices, producing
+        /// a sliver/misconnected triangle right at that junction with no warning
+        /// anywhere upstream. Clustering and snapping endpoints here, once, fixes it
+        /// for both export paths (JSON file + send-to-server), since they share this
+        /// same extracted data.
+        ///
+        /// Only first/last vertices are treated as "joints" — interior vertices of a
+        /// single polyline aren't where separate entities meet, so they're left alone.
+        /// </summary>
+        private static void WeldEndpoints(List<CADObjectData> data, double tolerance)
+        {
+            if (tolerance <= 0) return;
+
+            var endpoints = new List<(CADObjectData Entity, int Index)>();
+            foreach (var e in data)
+            {
+                var v = e.FlattenedVertices;
+                if (v == null || v.Count < 2) continue;
+                endpoints.Add((e, 0));
+                int last = v.Count - 1;
+                if (last != 0) endpoints.Add((e, last));
+            }
+            if (endpoints.Count < 2) return;
+
+            int n = endpoints.Count;
+            var parent = new int[n];
+            for (int i = 0; i < n; i++) parent[i] = i;
+            int Find(int x)
+            {
+                while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+                return x;
+            }
+            void Union(int a, int b)
+            {
+                a = Find(a); b = Find(b);
+                if (a != b) parent[a] = b;
+            }
+
+            // Spatial hash: cell size == tolerance, so any two points within tolerance
+            // land in the same or an adjacent (3x3x3) cell — avoids an O(n^2) scan.
+            (long, long, long) CellOf(double[] p) => (
+                (long)Math.Floor(p[0] / tolerance),
+                (long)Math.Floor(p[1] / tolerance),
+                (long)Math.Floor(p[2] / tolerance));
+
+            var grid = new Dictionary<(long, long, long), List<int>>();
+            for (int i = 0; i < n; i++)
+            {
+                var p = endpoints[i].Entity.FlattenedVertices[endpoints[i].Index];
+                var (cx, cy, cz) = CellOf(p);
+                for (long dx = -1; dx <= 1; dx++)
+                    for (long dy = -1; dy <= 1; dy++)
+                        for (long dz = -1; dz <= 1; dz++)
+                        {
+                            if (!grid.TryGetValue((cx + dx, cy + dy, cz + dz), out var bucket)) continue;
+                            foreach (int j in bucket)
+                            {
+                                var q = endpoints[j].Entity.FlattenedVertices[endpoints[j].Index];
+                                double ddx = p[0] - q[0], ddy = p[1] - q[1], ddz = p[2] - q[2];
+                                if (ddx * ddx + ddy * ddy + ddz * ddz <= tolerance * tolerance)
+                                    Union(i, j);
+                            }
+                        }
+                var key = (cx, cy, cz);
+                if (!grid.TryGetValue(key, out var list)) grid[key] = list = new List<int>();
+                list.Add(i);
+            }
+
+            // Snap every endpoint in a multi-member cluster to that cluster's centroid.
+            var clusters = new Dictionary<int, List<int>>();
+            for (int i = 0; i < n; i++)
+            {
+                int root = Find(i);
+                if (!clusters.TryGetValue(root, out var list)) clusters[root] = list = new List<int>();
+                list.Add(i);
+            }
+
+            int weldedClusters = 0;
+            foreach (var members in clusters.Values)
+            {
+                if (members.Count < 2) continue;
+
+                double sx = 0, sy = 0, sz = 0;
+                foreach (int idx in members)
+                {
+                    var p = endpoints[idx].Entity.FlattenedVertices[endpoints[idx].Index];
+                    sx += p[0]; sy += p[1]; sz += p[2];
+                }
+                var snapped = new double[] { sx / members.Count, sy / members.Count, sz / members.Count };
+
+                foreach (int idx in members)
+                {
+                    var (entity, vi) = endpoints[idx];
+                    entity.FlattenedVertices[vi] = snapped;
+                    if (vi < entity.Vertices.Count)
+                        entity.Vertices[vi] = snapped;
+                }
+                weldedClusters++;
+            }
+
+            if (weldedClusters > 0)
+                System.Diagnostics.Debug.WriteLine(
+                    $"WeldEndpoints: merged {weldedClusters} near-coincident junction cluster(s) within {tolerance} units.");
         }
 
         // -------------------------------------------------------------------------

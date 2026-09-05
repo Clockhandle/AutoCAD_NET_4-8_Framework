@@ -59,9 +59,9 @@ namespace MyMiningPlugin.UI
             btnDeselectAll.Click += (s, e) => { for (int i = 0; i < chkItems.Items.Count; i++) chkItems.SetItemChecked(i, false); };
             this.Controls.Add(btnDeselectAll);
 
-            // --- Date input (only for Địa hình lò) ---
+            // --- Date input (Địa hình lò and Địa hình lò Loại 2 only) ---
             int dateOffset = 0;
-            if (category == "Địa hình lò")
+            if (category == "Địa hình lò" || category == "Địa hình lò Loại 2")
             {
                 dateOffset = 55;
                 this.Controls.Add(new Label { Text = "Ngày dữ liệu:", Location = new Point(20, 263), AutoSize = true });
