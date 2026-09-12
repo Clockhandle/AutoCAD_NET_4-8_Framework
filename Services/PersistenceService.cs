@@ -40,6 +40,7 @@ namespace MyMiningPlugin.Services
                     Vias = project.Vias.Select(v => new
                     {
                         v.Name,
+                        v.IsDutGay,
                         Blocks = v.Blocks.Select(b => new
                             {
                                 b.Name,
@@ -130,7 +131,11 @@ namespace MyMiningPlugin.Services
                 // Reconstruct Vias
                 foreach (var viaData in projectData.Vias)
                 {
-                    ViaData via = new ViaData { Name = viaData.Name.ToString() };
+                    ViaData via = new ViaData
+                    {
+                        Name = viaData.Name.ToString(),
+                        IsDutGay = viaData.IsDutGay != null && (bool)viaData.IsDutGay
+                    };
                     
                     foreach (var blockData in viaData.Blocks)
                     {

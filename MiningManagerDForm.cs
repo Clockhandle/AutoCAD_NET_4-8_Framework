@@ -84,7 +84,7 @@ namespace AutoCAD_NET_4_8_Framework
             
             string nodeTag = e.Node.Tag as string;
 
-            if (nodeTag == "RootVias" || nodeTag == "RootFaults" || nodeTag == "RootRocks" || nodeTag == "RootBoreholes" || nodeTag == "RootBeMats" || nodeTag == "RootMineTopologies" || nodeTag == "RootGioiHans")
+            if (nodeTag == "RootVias" || nodeTag == "RootRocks" || nodeTag == "RootBoreholes" || nodeTag == "RootBeMats" || nodeTag == "RootMineTopologies" || nodeTag == "RootGioiHans")
             {
                 // 1. Create the instance of the UserControl
                 UCRootCategory rootUc = new UCRootCategory { Dock = DockStyle.Fill };
@@ -94,9 +94,11 @@ namespace AutoCAD_NET_4_8_Framework
                 {
                     case "RootVias":
                         rootUc.LoadData(
-                            title: "Quản lý Vỉa",
+                            title: "Quản lý Vỉa / Đứt gãy",
                             addBtnText: "+ Thêm Vỉa Mới",
                             onAddNew: () => AddNewVia(),
+                            onAddNew2: () => AddNewVia(isDutGay: true),
+                            addBtn2Text: "+ Thêm Đứt Gãy Mới",
                             onSendToServer: () => ShowSendMultipleDialog("Vỉa"),
                             onExportJson: () => ShowExportMultipleDialog("Vỉa"),
                             onSaveProject: () => SaveProjectData(),
@@ -130,18 +132,6 @@ namespace AutoCAD_NET_4_8_Framework
                                 MessageBox.Show(result, "Xóa marker",
                                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                             }
-                        );
-                        break;
-
-                    case "RootFaults":
-                        rootUc.LoadData(
-                            title: "Quản lý Đứt gãy",
-                            addBtnText: "+ Thêm Đứt gãy Mới",
-                            onAddNew: () => AddNewFault(), 
-                            onSendToServer: () => ShowSendMultipleDialog("Đứt gãy"),
-                            onExportJson: () => ShowExportMultipleDialog("Đứt gãy"),
-                            onSaveProject: () => SaveProjectData(),
-                            onLoadProject: () => LoadProjectData()
                         );
                         break;
 
@@ -559,10 +549,12 @@ namespace AutoCAD_NET_4_8_Framework
 
         // --- INJECTED LOGIC METHODS ---
 
-        private void AddNewVia(string name = null)
+        private void AddNewVia(string name = null, bool isDutGay = false)
         {
-            string viaName = name ?? $"Vỉa {_project.Vias.Count + 1}";
-            ViaData newVia = new ViaData { Name = viaName };
+            string viaName = name ?? (isDutGay
+                ? $"Đứt gãy {_project.Vias.Count(v => v.IsDutGay) + 1}"
+                : $"Vỉa {_project.Vias.Count(v => !v.IsDutGay) + 1}");
+            ViaData newVia = new ViaData { Name = viaName, IsDutGay = isDutGay };
             _project.Vias.Add(newVia);
 
             TreeNode node = new TreeNode(viaName);
@@ -637,33 +629,6 @@ namespace AutoCAD_NET_4_8_Framework
                 foreach (TreeNode n in treeView.Nodes)
                 {
                     if (n.Tag as string == "RootBeMats")
-                    {
-                        n.Nodes.Add(node);
-                        n.Expand();
-                        break;
-                    }
-                }
-            }
-        }
-
-        private void AddNewFault()
-        {
-            string faultName = $"Đứt gãy {_project.Faults.Count + 1}";
-            FaultData newFault = new FaultData
-            {
-                Name = faultName,
-                Surface = new SurfaceData { Type = "Đứt gãy", ParentName = faultName }
-            };
-            _project.Faults.Add(newFault);
-
-            TreeNode node = new TreeNode(faultName);
-            node.Tag = newFault;
-
-            if (treeView != null)
-            {
-                foreach (TreeNode n in treeView.Nodes)
-                {
-                    if (n.Tag as string == "RootFaults")
                     {
                         n.Nodes.Add(node);
                         n.Expand();
@@ -1081,17 +1046,13 @@ namespace AutoCAD_NET_4_8_Framework
             if (treeView == null) return;
             treeView.Nodes.Clear();
 
-            TreeNode rootVias = new TreeNode("Danh sách Vỉa");
+            TreeNode rootVias = new TreeNode("Danh sách Vỉa / Đứt gãy");
             rootVias.Tag = "RootVias";
             treeView.Nodes.Add(rootVias);
 
             TreeNode rootBeMats = new TreeNode("Danh sách Bề mặt");
             rootBeMats.Tag = "RootBeMats";
             treeView.Nodes.Add(rootBeMats);
-
-            TreeNode rootFaults = new TreeNode("Danh sách Đứt gãy");
-            rootFaults.Tag = "RootFaults";
-            treeView.Nodes.Add(rootFaults);
 
             TreeNode rootRocks = new TreeNode("Danh sách Nham thạch");
             rootRocks.Tag = "RootRocks";
@@ -1141,13 +1102,6 @@ namespace AutoCAD_NET_4_8_Framework
                 TreeNode node = new TreeNode(bemat.Name);
                 node.Tag = bemat;
                 rootBeMats.Nodes.Add(node);
-            }
-
-            foreach (var fault in _project.Faults)
-            {
-                TreeNode node = new TreeNode(fault.Name);
-                node.Tag = fault;
-                rootFaults.Nodes.Add(node);
             }
 
             foreach (var rock in _project.Rocks)

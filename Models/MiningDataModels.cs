@@ -9,6 +9,11 @@ namespace MyMiningPlugin.Models
     {
         public string Name { get; set; }
         public List<KhoiData> Blocks { get; set; } = new List<KhoiData>();
+
+        // Distinguishes a "Đứt gãy" entry from a "Vỉa" entry inside the merged
+        // Danh sách Vỉa / Đứt gãy list — both share the same Khoi/Vach/Tru structure;
+        // only the exported field name (ViaName vs DutGayName) differs.
+        public bool IsDutGay { get; set; }
     }
 
     public class KhoiData

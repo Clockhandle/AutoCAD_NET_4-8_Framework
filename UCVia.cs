@@ -22,6 +22,7 @@ namespace AutoCAD_NET_4_8_Framework
 
             lblHeader.Text = $"Toàn bộ {via.Name}";
             lblInfo.Text = $"Số Khối: {via.Blocks.Count}\nTổng Vách: {via.Blocks.Sum(b => b.Vach.SelectedGeometry.Count)} lines\nTổng Trụ: {via.Blocks.Sum(b => b.Tru.SelectedGeometry.Count)} lines\nTổng Đứt gãy: {via.Blocks.Sum(b => b.DutGay?.SelectedGeometry.Count ?? 0)} lines";
+            btnDeleteVia.Text = via.IsDutGay ? "Xóa khối" : "Xóa vỉa";
         }
 
         // TODO: Map these methods to your Button Click Events in the Designer!

@@ -291,7 +291,7 @@ namespace MyMiningPlugin.Services
                             var vachGeometryList = await _geometryProcessor.ProcessGeometryWithSmartZ(khoi.Vach);
                             foreach (var geo in vachGeometryList)
                             {
-                                flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Vách"));
+                                flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Vách", via.IsDutGay));
                             }
                         }
 
@@ -302,7 +302,7 @@ namespace MyMiningPlugin.Services
                             var truGeometryList = await _geometryProcessor.ProcessGeometryWithSmartZ(khoi.Tru);
                             foreach (var geo in truGeometryList)
                             {
-                                flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Trụ"));
+                                flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Trụ", via.IsDutGay));
                             }
                         }
 
@@ -315,7 +315,7 @@ namespace MyMiningPlugin.Services
                                 // Đứt gãy IS the breakline for a Via block — it's the line that
                                 // splits the block/volume into two downstream in the render app.
                                 geo.IsBreakline = true;
-                                flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Đứt gãy"));
+                                flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Đứt gãy", via.IsDutGay));
                             }
                         }
                     }
@@ -434,7 +434,7 @@ namespace MyMiningPlugin.Services
             return true;
         }
 
-        private object CreateGeometryItem(CADObjectData geo, string mapName, string name, string blockName, string type)
+        private object CreateGeometryItem(CADObjectData geo, string mapName, string name, string blockName, string type, bool isDutGay = false)
         {
             var item = new
             {
@@ -454,9 +454,33 @@ namespace MyMiningPlugin.Services
                 FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList()
             };
 
-            // Add BlockName if it's a Via
+            // Add BlockName if it's a Via / Đứt gãy entry — the field name itself
+            // (ViaName vs DutGayName) depends on which kind this entry is, even
+            // though both share the exact same Khoi/Vach/Tru structure.
             if (blockName != null)
             {
+                if (isDutGay)
+                {
+                    return new
+                    {
+                        item.MapName,
+                        item.Handle,
+                        item.Layer,
+                        item.ColorIndex,
+                        item.ColorName,
+                        item.TrueColor,
+                        DutGayName = name,
+                        BlockName = blockName,
+                        item.Type,
+                        item.IsClosed,
+                        item.IsBoundary,
+                        item.IsHole,
+                        item.IsBreakline,
+                        item.VertexCount,
+                        item.FlattenedVertices
+                    };
+                }
+
                 return new
                 {
                     item.MapName,
