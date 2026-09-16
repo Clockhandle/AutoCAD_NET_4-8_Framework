@@ -33,8 +33,6 @@
             this.btnAdd2 = new System.Windows.Forms.Button();
             this.btnSendServer = new System.Windows.Forms.Button();
             this.btnExportJson = new System.Windows.Forms.Button();
-            this.btnSaveProject = new System.Windows.Forms.Button();
-            this.btnLoadProject = new System.Windows.Forms.Button();
             this.btnClearMarkers = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
@@ -89,32 +87,12 @@
             this.btnExportJson.UseVisualStyleBackColor = true;
             this.btnExportJson.Click += new System.EventHandler(this.btnExportJson_Click);
             // 
-            // btnSaveProject
-            // 
-            this.btnSaveProject.Location = new System.Drawing.Point(23, 168);
-            this.btnSaveProject.Name = "btnSaveProject";
-            this.btnSaveProject.Size = new System.Drawing.Size(116, 36);
-            this.btnSaveProject.TabIndex = 5;
-            this.btnSaveProject.Text = "Lưu dự án";
-            this.btnSaveProject.UseVisualStyleBackColor = true;
-            this.btnSaveProject.Click += new System.EventHandler(this.btnSaveProject_Click);
-            // 
-            // btnLoadProject
-            // 
-            this.btnLoadProject.Location = new System.Drawing.Point(23, 210);
-            this.btnLoadProject.Name = "btnLoadProject";
-            this.btnLoadProject.Size = new System.Drawing.Size(116, 36);
-            this.btnLoadProject.TabIndex = 6;
-            this.btnLoadProject.Text = "Tải dự án";
-            this.btnLoadProject.UseVisualStyleBackColor = true;
-            this.btnLoadProject.Click += new System.EventHandler(this.btnLoadProject_Click);
-            // 
             // btnClearMarkers
-            // 
-            this.btnClearMarkers.Location = new System.Drawing.Point(23, 252);
+            //
+            this.btnClearMarkers.Location = new System.Drawing.Point(23, 168);
             this.btnClearMarkers.Name = "btnClearMarkers";
             this.btnClearMarkers.Size = new System.Drawing.Size(116, 36);
-            this.btnClearMarkers.TabIndex = 7;
+            this.btnClearMarkers.TabIndex = 5;
             this.btnClearMarkers.Text = "Kiểm tra DQ";
             this.btnClearMarkers.UseVisualStyleBackColor = true;
             this.btnClearMarkers.Visible = false;
@@ -124,8 +102,6 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.btnLoadProject);
-            this.Controls.Add(this.btnSaveProject);
             this.Controls.Add(this.btnExportJson);
             this.Controls.Add(this.btnSendServer);
             this.Controls.Add(this.btnAdd2);
@@ -146,8 +122,6 @@
         private System.Windows.Forms.Button btnAdd2;
         private System.Windows.Forms.Button btnSendServer;
         private System.Windows.Forms.Button btnExportJson;
-        private System.Windows.Forms.Button btnSaveProject;
-        private System.Windows.Forms.Button btnLoadProject;
         private System.Windows.Forms.Button btnClearMarkers;
     }
 }

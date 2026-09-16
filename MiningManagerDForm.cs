@@ -53,11 +53,18 @@ namespace AutoCAD_NET_4_8_Framework
             // Load global Tiết diện library
             _tietDienLibrary = _persistenceService.LoadTietDienLibrary();
 
-            // Try loading saved project silently (no MessageBox during construction)
-            var loadedProject = _persistenceService.LoadProjectData(silent: true);
-            if (loadedProject != null)
+            // Bring anyone still on the old single-file save onto the new save-slot
+            // system, then silently reopen whichever slot was last saved/loaded so a
+            // fresh launch continues where the previous session left off.
+            _persistenceService.MigrateLegacyProjectIfNeeded();
+            string lastSavePath = _persistenceService.GetLastSavePath();
+            if (!string.IsNullOrEmpty(lastSavePath))
             {
-                _project = loadedProject;
+                var loadedProject = _persistenceService.LoadProjectFromFile(lastSavePath, silent: true);
+                if (loadedProject != null)
+                {
+                    _project = loadedProject;
+                }
             }
             RebuildTreeView();
 
@@ -100,9 +107,7 @@ namespace AutoCAD_NET_4_8_Framework
                             onAddNew2: () => AddNewVia(isDutGay: true),
                             addBtn2Text: "+ Thêm Đứt Gãy Mới",
                             onSendToServer: () => ShowSendMultipleDialog("Vỉa"),
-                            onExportJson: () => ShowExportMultipleDialog("Vỉa"),
-                            onSaveProject: () => SaveProjectData(),
-                            onLoadProject: () => LoadProjectData()
+                            onExportJson: () => ShowExportMultipleDialog("Vỉa")
                         );
                         break;
 
@@ -114,8 +119,6 @@ namespace AutoCAD_NET_4_8_Framework
                             onAddNew: () => AddNewBeMat(),
                             onSendToServer: () => ShowSendMultipleDialog("Bề mặt"),
                             onExportJson: () => ShowExportMultipleDialog("Bề mặt"),
-                            onSaveProject: () => SaveProjectData(),
-                            onLoadProject: () => LoadProjectData(),
                             onRunDQ: async () =>
                             {
                                 var names = _project.BeMats.Select(b => b.Name).ToList();
@@ -141,9 +144,7 @@ namespace AutoCAD_NET_4_8_Framework
                             addBtnText: "+ Thêm Lỗ khoan Mới",
                             onAddNew: () => AddNewBorehole(),
                             onSendToServer: () => ShowSendMultipleDialog("Lỗ khoan"),
-                            onExportJson: () => ShowExportMultipleDialog("Lỗ khoan"),
-                            onSaveProject: () => SaveProjectData(),
-                            onLoadProject: () => LoadProjectData()
+                            onExportJson: () => ShowExportMultipleDialog("Lỗ khoan")
                         );
                         break;
 
@@ -183,8 +184,6 @@ namespace AutoCAD_NET_4_8_Framework
                                 form.Controls.Add(b1); form.Controls.Add(b2);
                                 form.ShowDialog(this);
                             },
-                            onSaveProject: () => SaveProjectData(),
-                            onLoadProject: () => LoadProjectData(),
                             onAddNew2: () => AddNewMineTopology2(),
                             addBtn2Text: "+ Thêm địa hình lò loại 2"
                         );
@@ -196,9 +195,7 @@ namespace AutoCAD_NET_4_8_Framework
                             addBtnText: "+ Thêm Giới hạn Mới",
                             onAddNew: () => AddNewGioiHan(),
                             onSendToServer: () => ShowSendMultipleDialog("Giới hạn"),
-                            onExportJson: () => ShowExportMultipleDialog("Giới hạn"),
-                            onSaveProject: () => SaveProjectData(),
-                            onLoadProject: () => LoadProjectData()
+                            onExportJson: () => ShowExportMultipleDialog("Giới hạn")
                         );
                         break;
                         
@@ -208,9 +205,7 @@ namespace AutoCAD_NET_4_8_Framework
                             addBtnText: "+ Thêm Nham thạch Mới",
                             onAddNew: () => AddNewRock(),
                             onSendToServer: () => ShowSendMultipleDialog("Nham thạch"),
-                            onExportJson: () => ShowExportMultipleDialog("Nham thạch"),
-                            onSaveProject: () => SaveProjectData(),
-                            onLoadProject: () => LoadProjectData()
+                            onExportJson: () => ShowExportMultipleDialog("Nham thạch")
                         );
                         break;
                 }
@@ -349,98 +344,80 @@ namespace AutoCAD_NET_4_8_Framework
                 );
                 rightPanel.Controls.Add(ucTopo);
             }
-            else if (e.Node.Tag is MineTopologyLoai2Data topo2)
+            else if (nodeTag == "TietDienLibrary")
             {
-                // Resolve all single-polyline references
-                foreach (var td in topo2.TietDiens)
-                    _selectionService.ResolveReference(td.Polyline);
-                foreach (var d in topo2.DoanDuongLos)
-                    _selectionService.ResolveReference(d.Polyline);
+                // Resolve all single-polyline references so status (in dwg / not) is accurate.
+                // Batched into one transaction — one per entry gets very slow once the
+                // library is large.
+                _selectionService.ResolveReferences(_tietDienLibrary.Select(td => td.Polyline));
 
-                var ucTopo2 = new UCMineTopologyLoai2 { Dock = DockStyle.Fill };
-                ucTopo2.LoadData(
-                    data: topo2,
+                var ucLib = new UCTietDienLibrary { Dock = DockStyle.Fill };
+                ucLib.LoadData(
+                    library: _tietDienLibrary,
                     onAddTietDien: (tdName) => {
+                        if (_tietDienLibrary.Any(t => t.Name == tdName))
+                        {
+                            MessageBox.Show("Đã tồn tại tiết diện cùng tên trong thư viện.", "Trùng tên",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
                         this.Hide();
                         var geoRef = _selectionService.SelectSinglePolyline($"Chọn polyline tiết diện '{tdName}'");
                         this.Show();
                         if (geoRef == null) return;
-                        if (IsDuplicatePolylineInTopo2(topo2, geoRef))
+                        if (IsDuplicatePolylineInTietDienLibrary(geoRef))
                         {
-                            MessageBox.Show("Polyline này đã được dùng cho một tiết diện hoặc đoạn đường lò khác trong địa hình lò này.\nMỗi đoạn đường lò/tiết diện phải ứng với một polyline riêng biệt.",
+                            MessageBox.Show("Polyline này đã được dùng cho một tiết diện khác trong thư viện.",
                                 "Polyline trùng lặp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
                         }
-                        var newTD = new TietDienData { Name = tdName, Polyline = geoRef };
-                        topo2.TietDiens.Add(newTD);
-                        // Upsert into global library
-                        var existing = _tietDienLibrary.FirstOrDefault(t => t.Name == tdName);
-                        if (existing != null) existing.Polyline = geoRef;
-                        else _tietDienLibrary.Add(new TietDienData { Name = tdName, Polyline = geoRef });
+                        var newTietDien = new TietDienData { Name = tdName, Polyline = geoRef };
+                        _tietDienLibrary.Add(newTietDien);
                         _persistenceService.SaveTietDienLibrary(_tietDienLibrary);
-                        ucTopo2.RebuildUI();
+                        ucLib.AddTietDienRow(newTietDien);
                     },
                     onSelectTietDienPoly: (td) => {
                         this.Hide();
                         var geoRef = _selectionService.SelectSinglePolyline($"Chọn lại polyline cho '{td.Name}'");
                         this.Show();
                         if (geoRef == null) return;
-                        if (IsDuplicatePolylineInTopo2(topo2, geoRef, excludeEntry: td))
+                        if (IsDuplicatePolylineInTietDienLibrary(geoRef, excludeEntry: td))
                         {
-                            MessageBox.Show("Polyline này đã được dùng cho một tiết diện hoặc đoạn đường lò khác trong địa hình lò này.\nMỗi đoạn đường lò/tiết diện phải ứng với một polyline riêng biệt.",
+                            MessageBox.Show("Polyline này đã được dùng cho một tiết diện khác trong thư viện.",
                                 "Polyline trùng lặp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
                         }
                         td.Polyline = geoRef;
-                        // Sync global library
-                        var existing = _tietDienLibrary.FirstOrDefault(t => t.Name == td.Name);
-                        if (existing != null) existing.Polyline = geoRef;
-                        else _tietDienLibrary.Add(new TietDienData { Name = td.Name, Polyline = geoRef });
                         _persistenceService.SaveTietDienLibrary(_tietDienLibrary);
-                        ucTopo2.RebuildUI();
+                        ucLib.RefreshTietDienRow(td);
                     },
                     onDeleteTietDien: (td) => {
-                        topo2.TietDiens.Remove(td);
-                        ucTopo2.RebuildUI();
-                    },
-                    onSaveTietDiens: () => {
-                        int saved = 0;
-                        foreach (var td in topo2.TietDiens)
-                        {
-                            if (td.Polyline == null) continue;  // skip entries with no polyline
-                            var existing = _tietDienLibrary.FirstOrDefault(t => t.Name == td.Name);
-                            if (existing != null) existing.Polyline = td.Polyline;
-                            else _tietDienLibrary.Add(new TietDienData { Name = td.Name, Polyline = td.Polyline });
-                            saved++;
-                        }
+                        var confirm = MessageBox.Show($"Xóa tiết diện \"{td.Name}\" khỏi thư viện?", "Xác nhận xóa",
+                            MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                        if (confirm != DialogResult.Yes) return;
+                        _tietDienLibrary.Remove(td);
                         _persistenceService.SaveTietDienLibrary(_tietDienLibrary);
-                        int skipped = topo2.TietDiens.Count - saved;
-                        string msg = $"Đã lưu {saved} tiết diện vào thư viện.";
-                        if (skipped > 0) msg += $"\n({skipped} mục chưa chọn polyline bị bỏ qua)";
-                        MessageBox.Show(msg, "Lưu thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        ucLib.RemoveTietDienRow(td);
                     },
-                    onLoadTietDiens: () => {
-                        _tietDienLibrary = _persistenceService.LoadTietDienLibrary();
-                        if (_tietDienLibrary.Count == 0)
-                        {
-                            MessageBox.Show("Chưa có tiết diện nào trong thư viện.", "Thông báo",
-                                MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            return;
-                        }
-                        // Merge library into this entry (add any missing by name)
-                        foreach (var td in _tietDienLibrary)
-                        {
-                            if (!topo2.TietDiens.Any(t => t.Name == td.Name))
-                                topo2.TietDiens.Add(new TietDienData { Name = td.Name, Polyline = td.Polyline });
-                        }
-                        ucTopo2.RebuildUI();
-                        MessageBox.Show($"Đã tải {_tietDienLibrary.Count} tiết diện từ thư viện.", "Tải thành công",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    },
+                    onExportJson: () => ShowExportTietDienLibraryDialog()
+                );
+                rightPanel.Controls.Add(ucLib);
+            }
+            else if (e.Node.Tag is MineTopologyLoai2Data topo2)
+            {
+                // Resolve all single-polyline references. Batched into one transaction —
+                // with hundreds of Đoạn đường lò, one transaction per entry was the
+                // dominant cost in loading this node.
+                _selectionService.ResolveReferences(topo2.DoanDuongLos.Select(d => d.Polyline));
+
+                var ucTopo2 = new UCMineTopologyLoai2 { Dock = DockStyle.Fill };
+                ucTopo2.LoadData(
+                    data: topo2,
                     onAddDoan: () => {
                         string doanName = $"Đoạn {topo2.DoanDuongLos.Count + 1}";
-                        topo2.DoanDuongLos.Add(new DoanDuongLoData { Name = doanName });
-                        ucTopo2.RebuildUI();
+                        var newDoan = new DoanDuongLoData { Name = doanName };
+                        topo2.DoanDuongLos.Add(newDoan);
+                        ucTopo2.AddDoanRow(newDoan);
                     },
                     onSelectDoanPolyline: (doan) => {
                         this.Hide();
@@ -449,23 +426,24 @@ namespace AutoCAD_NET_4_8_Framework
                         if (geoRef == null) return;
                         if (IsDuplicatePolylineInTopo2(topo2, geoRef, excludeEntry: doan))
                         {
-                            MessageBox.Show("Polyline này đã được dùng cho một tiết diện hoặc đoạn đường lò khác trong địa hình lò này.\nMỗi đoạn đường lò/tiết diện phải ứng với một polyline riêng biệt.",
+                            MessageBox.Show("Polyline này đã được dùng cho một đoạn đường lò khác trong địa hình lò này.\nMỗi đoạn đường lò phải ứng với một polyline riêng biệt.",
                                 "Polyline trùng lặp", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
                         }
                         doan.Polyline = geoRef;
-                        ucTopo2.RebuildUI();
+                        ucTopo2.RefreshDoanRow(doan);
                     },
                     onDeleteDoan: (doan) => {
                         topo2.DoanDuongLos.Remove(doan);
-                        ucTopo2.RebuildUI();
+                        ucTopo2.RemoveDoanRow(doan);
                     },
                     onDelete: () => {
                         _project.MineTopologies2.Remove(topo2);
                         e.Node.Remove();
                         rightPanel.Controls.Clear();
                     },
-                    getTietDienLibrary: () => _tietDienLibrary
+                    getTietDienLibrary: () => _tietDienLibrary,
+                    onLoadTietDienJson: () => LoadTietDienLibraryJsonInto(ucTopo2)
                 );
                 rightPanel.Controls.Add(ucTopo2);
             }
@@ -491,6 +469,21 @@ namespace AutoCAD_NET_4_8_Framework
                     }
                 );
                 rightPanel.Controls.Add(ucGioiHanKhoi);
+            }
+            else if (nodeTag == "RootSaveManager")
+            {
+                var ucSave = new UCSaveManager { Dock = DockStyle.Fill };
+                ucSave.LoadData(
+                    savesFolderPath: _persistenceService.GetSavesFolder(),
+                    onSaveNew: (name) => SaveProjectAsNew(name, ucSave),
+                    getSaves: () => _persistenceService.ListSaves(),
+                    onLoadSlot: (slot) => LoadFromSlot(slot),
+                    onOverwriteSlot: (slot) => OverwriteSlot(slot, ucSave),
+                    onDeleteSlot: (slot) => DeleteSlot(slot, ucSave),
+                    onBrowseLoad: () => BrowseAndLoadProject(),
+                    onOpenFolder: () => OpenSavesFolder()
+                );
+                rightPanel.Controls.Add(ucSave);
             }
         }
 
@@ -739,11 +732,11 @@ namespace AutoCAD_NET_4_8_Framework
 
         /// <summary>
         /// Checks whether <paramref name="geoRef"/> (identified by Handle + source drawing)
-        /// is already assigned to another Tiết diện or Đoạn đường lò within this same
-        /// địa hình lò entry. Every polyline in a Loại 2 topology must be unique — a tunnel
-        /// segment or cross-section reusing another one's geometry produces incorrect results.
-        /// Pass the entry currently being edited as <paramref name="excludeEntry"/> so re-picking
-        /// the same polyline it already has isn't flagged as a duplicate of itself.
+        /// is already assigned to another Đoạn đường lò within this same địa hình lò entry.
+        /// Every tunnel segment in a Loại 2 topology must be unique — reusing another one's
+        /// geometry produces incorrect results. Pass the entry currently being edited as
+        /// <paramref name="excludeEntry"/> so re-picking the same polyline it already has
+        /// isn't flagged as a duplicate of itself.
         /// </summary>
         private static bool IsDuplicatePolylineInTopo2(MineTopologyLoai2Data topo2, GeometryReference geoRef, object excludeEntry = null)
         {
@@ -754,13 +747,99 @@ namespace AutoCAD_NET_4_8_Framework
                 && other.Handle == geoRef.Handle
                 && other.SourceDwgPath == geoRef.SourceDwgPath;
 
-            foreach (var td in topo2.TietDiens)
-                if (!ReferenceEquals(td, excludeEntry) && SamePolyline(td.Polyline)) return true;
-
             foreach (var d in topo2.DoanDuongLos)
                 if (!ReferenceEquals(d, excludeEntry) && SamePolyline(d.Polyline)) return true;
 
             return false;
+        }
+
+        /// <summary>
+        /// Checks whether <paramref name="geoRef"/> is already assigned to another entry in
+        /// the global Tiết diện library. Pass the entry being re-picked as <paramref name="excludeEntry"/>
+        /// so re-selecting its own polyline isn't flagged as a duplicate of itself.
+        /// </summary>
+        private bool IsDuplicatePolylineInTietDienLibrary(GeometryReference geoRef, object excludeEntry = null)
+        {
+            if (geoRef == null) return false;
+
+            bool SamePolyline(GeometryReference other) =>
+                other != null
+                && other.Handle == geoRef.Handle
+                && other.SourceDwgPath == geoRef.SourceDwgPath;
+
+            foreach (var td in _tietDienLibrary)
+                if (!ReferenceEquals(td, excludeEntry) && SamePolyline(td.Polyline)) return true;
+
+            return false;
+        }
+
+        private void ShowExportTietDienLibraryDialog()
+        {
+            List<string> items = _tietDienLibrary.Select(t => t.Name).ToList();
+            if (items.Count == 0)
+            {
+                MessageBox.Show("Chưa có Tiết diện nào!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var dialog = new ExportMultipleDataDialog("Chọn Tiết diện để export", items, "Tiết diện", "TietDien_Library");
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                ExportTietDienLibraryToFile(dialog.SelectedItems, dialog.MapName);
+            }
+        }
+
+        private async void ExportTietDienLibraryToFile(List<string> selectedNames, string fileName)
+        {
+            try
+            {
+                await _exportService.ExportTietDienLibraryToFile(_tietDienLibrary, selectedNames, fileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi export: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Loads a previously-exported Tiết diện JSON (from the library's "Xuất JSON" button)
+        /// and merges any newly-named entries into the shared _tietDienLibrary, so Đoạn đường
+        /// lò can assign them the same way as any other library entry — the dropdown in
+        /// <paramref name="ucTopo2"/> sources straight from _tietDienLibrary already.
+        /// Entries whose name already exists in the library are left untouched (a live,
+        /// drawing-resolvable reference is not overwritten by an imported one).
+        /// </summary>
+        private void LoadTietDienLibraryJsonInto(UCMineTopologyLoai2 ucTopo2)
+        {
+            using (var ofd = new OpenFileDialog { Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*", Title = "Tải thư viện Tiết diện (JSON)" })
+            {
+                if (ofd.ShowDialog() != DialogResult.OK) return;
+
+                List<TietDienData> loaded;
+                try
+                {
+                    loaded = _persistenceService.LoadTietDienLibraryFromExportedJson(ofd.FileName);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Lỗi đọc file JSON: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                int added = 0, skipped = 0;
+                foreach (var td in loaded)
+                {
+                    if (_tietDienLibrary.Any(t => t.Name == td.Name)) { skipped++; continue; }
+                    _tietDienLibrary.Add(td);
+                    added++;
+                }
+                _persistenceService.SaveTietDienLibrary(_tietDienLibrary);
+                ucTopo2.RefreshTietDienOptions();
+
+                string msg = $"Đã thêm {added} tiết diện vào thư viện.";
+                if (skipped > 0) msg += $"\n({skipped} mục trùng tên với tiết diện đã có, bị bỏ qua.)";
+                MessageBox.Show(msg, "Tải thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         private void AddNewGioiHan()
@@ -817,18 +896,117 @@ namespace AutoCAD_NET_4_8_Framework
             ghNode.Expand();
         }
 
-        private void SaveProjectData()
+        // ---------------------------------------------------------------
+        // Save manager  ("Lưu trữ dữ liệu" node — see UCSaveManager)
+        // ---------------------------------------------------------------
+
+        private void SaveProjectAsNew(string saveName, UCSaveManager ucSave)
         {
-            _persistenceService.SaveProjectData(_project);
+            var existing = _persistenceService.ListSaves();
+            string sanitized = PersistenceService.SanitizeSaveName(saveName);
+            bool conflicts = existing.Exists(s => string.Equals(s.Name, sanitized, StringComparison.OrdinalIgnoreCase));
+            if (conflicts)
+            {
+                var confirm = MessageBox.Show(
+                    $"Đã có bản lưu tên \"{sanitized}\". Ghi đè bản lưu này?", "Trùng tên",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (confirm != DialogResult.Yes) return;
+            }
+
+            try
+            {
+                string path = _persistenceService.SaveProjectAs(_project, saveName);
+                ucSave.RefreshList();
+                MessageBox.Show($"Đã lưu dự án tại:\n{path}", "Lưu thành công",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi khi lưu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
-        private void LoadProjectData()
+        private void LoadFromSlot(ProjectSaveSlot slot)
         {
-            var loadedProject = _persistenceService.LoadProjectData(silent: false);
+            var loadedProject = _persistenceService.LoadProjectFromFile(slot.FilePath, silent: false);
             if (loadedProject != null)
             {
                 _project = loadedProject;
                 RebuildTreeView();
+                rightPanel.Controls.Clear();
+            }
+        }
+
+        private void OverwriteSlot(ProjectSaveSlot slot, UCSaveManager ucSave)
+        {
+            var confirm = MessageBox.Show(
+                $"Ghi đè bản lưu \"{slot.Name}\" bằng dữ liệu hiện tại?", "Xác nhận ghi đè",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (confirm != DialogResult.Yes) return;
+
+            try
+            {
+                _persistenceService.OverwriteSave(_project, slot.FilePath);
+                ucSave.RefreshList();
+                MessageBox.Show($"Đã ghi đè bản lưu \"{slot.Name}\".", "Lưu thành công",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi khi lưu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void DeleteSlot(ProjectSaveSlot slot, UCSaveManager ucSave)
+        {
+            var confirm = MessageBox.Show(
+                $"Xóa bản lưu \"{slot.Name}\"? Không thể hoàn tác.", "Xác nhận xóa",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (confirm != DialogResult.Yes) return;
+
+            try
+            {
+                _persistenceService.DeleteSave(slot.FilePath);
+                ucSave.RefreshList();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi khi xóa: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // "Go look for them too" — a save file the user moved, renamed on disk, or
+        // received from someone else isn't necessarily inside the Saves folder.
+        private void BrowseAndLoadProject()
+        {
+            using (var ofd = new OpenFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+                Title = "Tải dự án từ file",
+                InitialDirectory = _persistenceService.GetSavesFolder()
+            })
+            {
+                if (ofd.ShowDialog() != DialogResult.OK) return;
+
+                var loadedProject = _persistenceService.LoadProjectFromFile(ofd.FileName, silent: false);
+                if (loadedProject != null)
+                {
+                    _project = loadedProject;
+                    RebuildTreeView();
+                    rightPanel.Controls.Clear();
+                }
+            }
+        }
+
+        private void OpenSavesFolder()
+        {
+            try
+            {
+                System.Diagnostics.Process.Start("explorer.exe", _persistenceService.GetSavesFolder());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Không mở được thư mục: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1066,6 +1244,12 @@ namespace AutoCAD_NET_4_8_Framework
             rootMineTopologies.Tag = "RootMineTopologies";
             treeView.Nodes.Add(rootMineTopologies);
 
+            // Always present, even with no Loại 1/2 entries yet — the reusable
+            // Tiết diện library that Địa hình lò Loại 2 draws its cross-sections from.
+            TreeNode tietDienNode = new TreeNode("Tiết diện");
+            tietDienNode.Tag = "TietDienLibrary";
+            rootMineTopologies.Nodes.Add(tietDienNode);
+
             TreeNode rootGioiHans = new TreeNode("Giới hạn cấp phép");
             rootGioiHans.Tag = "RootGioiHans";
             treeView.Nodes.Add(rootGioiHans);
@@ -1150,6 +1334,13 @@ namespace AutoCAD_NET_4_8_Framework
                 }
                 rootGioiHans.Nodes.Add(ghNode);
             }
+
+            // Centralized, cross-category section at the bottom of the tree — save
+            // system today, future home for whole-project bulk operations (mass
+            // export etc.) that don't belong to any single root category above.
+            TreeNode rootSaveManager = new TreeNode("Lưu trữ dữ liệu");
+            rootSaveManager.Tag = "RootSaveManager";
+            treeView.Nodes.Add(rootSaveManager);
 
             treeView.ExpandAll();
         }

@@ -129,6 +129,12 @@
     <Compile Include="UCMineTopologyLoai2.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="UCTietDienLibrary.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCSaveManager.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="UCRootCategory.cs">
       <SubType>UserControl</SubType>
     </Compile>

@@ -145,6 +145,75 @@ namespace MyMiningPlugin.Services
         }
 
         /// <summary>
+        /// Exports selected entries from the global Tiết diện library to a standalone JSON
+        /// file. Unlike the category exports above this isn't tied to a MiningProject list —
+        /// it works straight off the reusable library, so Địa hình lò Loại 2 (in any project)
+        /// can later read the file back and assign its named cross-sections to Đoạn đường lò.
+        /// </summary>
+        public async Task ExportTietDienLibraryToFile(List<TietDienData> library, List<string> selectedNames, string fileName)
+        {
+            try
+            {
+                var flattenedItems = new List<object>();
+
+                foreach (var name in selectedNames)
+                {
+                    var td = library.FirstOrDefault(t => t.Name == name);
+                    if (td?.Polyline == null) continue;
+
+                    _geometryProcessor._selectionService.ResolveReference(td.Polyline);
+
+                    var surface = new SurfaceData { Type = "Tiết diện", ParentName = td.Name };
+                    surface.SelectedGeometry.Add(td.Polyline);
+                    var geoList = await _geometryProcessor.ProcessGeometryWithSmartZ(surface);
+                    foreach (var geo in geoList)
+                    {
+                        flattenedItems.Add(new
+                        {
+                            TietDienName = td.Name,
+                            Handle = geo.Handle,
+                            Layer = geo.Layer,
+                            ColorIndex = geo.ColorIndex,
+                            ColorName = geo.ColorName,
+                            TrueColor = geo.TrueColor,
+                            IsClosed = geo.IsClosed,
+                            VertexCount = geo.FlattenedVertices.Count,
+                            FlattenedVertices = geo.FlattenedVertices.Select(pt => new double[] { pt[0], pt[1], pt[2] }).ToList()
+                        });
+                    }
+                }
+
+                if (flattenedItems.Count == 0)
+                {
+                    MessageBox.Show("Không có tiết diện nào để export.\nKiểm tra các tiết diện đã chọn đã có polyline và polyline đó có trong bản vẽ hiện tại chưa.",
+                        "Không có dữ liệu", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                string json = JsonConvert.SerializeObject(flattenedItems, Formatting.Indented);
+
+                SaveFileDialog saveDialog = new SaveFileDialog
+                {
+                    Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+                    DefaultExt = "json",
+                    FileName = $"{fileName.Replace(" ", "_")}.json",
+                    Title = "Export Tiết diện JSON"
+                };
+
+                if (saveDialog.ShowDialog() == DialogResult.OK)
+                {
+                    System.IO.File.WriteAllText(saveDialog.FileName, json);
+                    MessageBox.Show($"Export thành công!\n\nFile: {saveDialog.FileName}\nSố tiết diện: {selectedNames.Count}",
+                        "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi Export: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
         /// Run data-quality checks for all selected Bề mặt items and place
         /// markers on the drawing. Returns the summary string.
         /// </summary>
@@ -1044,7 +1113,10 @@ namespace MyMiningPlugin.Services
                             // Type 2 additions
                             DuongLoName  = t2.Name,
                             TietDienName = doan.TietDienName,
-                            DoanName     = doan.Name
+                            DoanName     = doan.Name,
+                            // Date this Đoạn was actually mined — distinct from the overall
+                            // Date above (which stamps the export/survey date for the whole topology).
+                            MinedDate    = doan.MinedDate.HasValue ? doan.MinedDate.Value.ToString("yyyy-MM-dd") : null
                         });
                 }
             }

@@ -11,7 +11,7 @@ namespace AutoCAD_NET_4_8_Framework
         private TextBox _txt;
         public string NewName => _txt.Text;
 
-        public RenameDialog(string prompt)
+        public RenameDialog(string prompt, string defaultValue = null)
         {
             this.Text = "Nhập tên";
             this.Size = new Size(320, 130);
@@ -23,7 +23,8 @@ namespace AutoCAD_NET_4_8_Framework
             var lbl = new Label { Text = prompt, Location = new Point(12, 12), AutoSize = true };
             this.Controls.Add(lbl);
 
-            _txt = new TextBox { Location = new Point(12, 32), Size = new Size(278, 22) };
+            _txt = new TextBox { Location = new Point(12, 32), Size = new Size(278, 22), Text = defaultValue ?? "" };
+            _txt.SelectAll();
             this.Controls.Add(_txt);
 
             var btnOK = new Button

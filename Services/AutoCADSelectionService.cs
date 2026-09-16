@@ -634,6 +634,9 @@ namespace MyMiningPlugin.Services
 
         /// <summary>
         /// Resolve a single GeometryReference against the current drawing.
+        /// Prefer <see cref="ResolveReferences"/> when resolving many at once — each call here
+        /// opens its own transaction, which gets very slow (one AutoCAD transaction per item)
+        /// once you're resolving hundreds, e.g. every Đoạn đường lò in a Loại 2 topology.
         /// </summary>
         public void ResolveReference(GeometryReference geoRef)
         {
@@ -657,6 +660,45 @@ namespace MyMiningPlugin.Services
                         else geoRef.CurrentObjectId = null;
                     }
                     catch { geoRef.CurrentObjectId = null; }
+                    tr.Commit();
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Resolve many GeometryReferences against the current drawing in a single transaction.
+        /// Use this instead of calling <see cref="ResolveReference"/> in a loop whenever there
+        /// could be many entries (a Loại 2 topology's Đoạn đường lò list, for instance) — one
+        /// AutoCAD transaction per item is the dominant cost once the list gets into the
+        /// hundreds; batching it into one transaction removes that per-item overhead entirely.
+        /// Null entries in the sequence are skipped.
+        /// </summary>
+        public void ResolveReferences(IEnumerable<GeometryReference> geoRefs)
+        {
+            try
+            {
+                Document doc = AcApp.DocumentManager.MdiActiveDocument;
+                if (doc == null) return;
+                Database db = doc.Database;
+                using (Transaction tr = db.TransactionManager.StartTransaction())
+                {
+                    foreach (var geoRef in geoRefs)
+                    {
+                        if (geoRef == null) continue;
+                        try
+                        {
+                            long handleValue = Convert.ToInt64(geoRef.Handle, 16);
+                            Handle handle = new Handle(handleValue);
+                            if (db.TryGetObjectId(handle, out ObjectId id) && !id.IsNull && id.IsValid)
+                            {
+                                Entity ent = tr.GetObject(id, OpenMode.ForRead) as Entity;
+                                geoRef.CurrentObjectId = ent != null ? id : (ObjectId?)null;
+                            }
+                            else geoRef.CurrentObjectId = null;
+                        }
+                        catch { geoRef.CurrentObjectId = null; }
+                    }
                     tr.Commit();
                 }
             }

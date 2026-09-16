@@ -1,5 +1,6 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 
 namespace MyMiningPlugin.Models
@@ -130,6 +131,7 @@ namespace MyMiningPlugin.Models
         public string Name { get; set; }
         public GeometryReference Polyline { get; set; }   // single polyline for this segment
         public string TietDienName { get; set; }          // references TietDienData.Name
+        public DateTime? MinedDate { get; set; }          // date this segment was mined (for export)
     }
 
     // --- Địa hình lò Loại 2 ---

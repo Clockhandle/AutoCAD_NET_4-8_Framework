@@ -10,8 +10,6 @@ namespace AutoCAD_NET_4_8_Framework
         private Action _onAddNew2;
         private Action _onSendToServer;
         private Action _onExportJson;
-        private Action _onSaveProject;
-        private Action _onLoadProject;
         private Action _onRunDQ;
         private Action _onClearMarkers;
         private bool   _markersActive = false;
@@ -21,14 +19,15 @@ namespace AutoCAD_NET_4_8_Framework
             InitializeComponent();
         }
 
+        // Lưu dự án / Tải dự án used to live here, duplicated across every root
+        // category. They now live once, centrally, under the "Lưu trữ dữ liệu"
+        // node at the bottom of the tree — see UCSaveManager.
         public void LoadData(
             string title,
             string addBtnText,
             Action onAddNew,
             Action onSendToServer,
             Action onExportJson,
-            Action onSaveProject,
-            Action onLoadProject,
             Action onRunDQ = null,
             Action onClearMarkers = null,
             Action onAddNew2 = null,
@@ -41,8 +40,6 @@ namespace AutoCAD_NET_4_8_Framework
             _onAddNew2      = onAddNew2;
             _onSendToServer = onSendToServer;
             _onExportJson   = onExportJson;
-            _onSaveProject  = onSaveProject;
-            _onLoadProject  = onLoadProject;
             _onRunDQ        = onRunDQ;
             _onClearMarkers = onClearMarkers;
 
@@ -58,8 +55,6 @@ namespace AutoCAD_NET_4_8_Framework
                 int shift = btnAdd2.Height + 6;
                 btnSendServer.Top  += shift;
                 btnExportJson.Top  += shift;
-                btnSaveProject.Top += shift;
-                btnLoadProject.Top += shift;
                 btnClearMarkers.Top += shift;
             }
             else
@@ -81,8 +76,6 @@ namespace AutoCAD_NET_4_8_Framework
         private void btnAdd2_Click(object sender, EventArgs e) => _onAddNew2?.Invoke();
         private void btnSendToServer_Click(object sender, EventArgs e) => _onSendToServer?.Invoke();
         private void btnExportJson_Click(object sender, EventArgs e)   => _onExportJson?.Invoke();
-        private void btnSaveProject_Click(object sender, EventArgs e)  => _onSaveProject?.Invoke();
-        private void btnLoadProject_Click(object sender, EventArgs e)  => _onLoadProject?.Invoke();
 
         private void btnClearMarkers_Click(object sender, EventArgs e)
         {

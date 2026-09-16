@@ -1,4 +1,4 @@
-﻿using MyMiningPlugin.Models;
+using MyMiningPlugin.Models;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -9,11 +9,28 @@ using System.Windows.Forms;
 namespace MyMiningPlugin.Services
 {
     /// <summary>
+    /// One named project save file, as listed in the "Lưu trữ dữ liệu" (save manager) node —
+    /// the RPG-style save-slot list.
+    /// </summary>
+    public class ProjectSaveSlot
+    {
+        public string Name { get; set; }
+        public string FilePath { get; set; }
+        public DateTime SavedAt { get; set; }
+    }
+
+    /// <summary>
     /// Handles project persistence (Save/Load to JSON)
     /// </summary>
     public class PersistenceService
     {
-        private string GetProjectDataPath()
+        // ---------------------------------------------------------------
+        // Save slots — every "Lưu dự án mới" creates one named *.json file here
+        // instead of the single always-overwritten file this used to be. LastSave.txt
+        // remembers which slot to silently reopen the next time the plugin starts.
+        // ---------------------------------------------------------------
+
+        private string GetLegacyProjectDataPath()
         {
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string projectFolder = Path.Combine(appData, "MyMiningPlugin");
@@ -24,237 +41,343 @@ namespace MyMiningPlugin.Services
             return Path.Combine(projectFolder, "MiningProject.json");
         }
 
-        private string GetTietDienLibraryPath()
+        public string GetSavesFolder()
         {
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appData, "MyMiningPlugin", "TietDienLibrary.json");
+            string folder = Path.Combine(appData, "MyMiningPlugin", "Saves");
+
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+
+            return folder;
         }
 
-        public void SaveProjectData(MiningProject project)
+        private string GetLastSavePointerPath()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return Path.Combine(appData, "MyMiningPlugin", "LastSave.txt");
+        }
+
+        /// <summary>Path of the save slot last written or loaded, or null if there isn't one yet.</summary>
+        public string GetLastSavePath()
         {
             try
             {
-                var projectData = new
-                {
-                    SavedDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    Vias = project.Vias.Select(v => new
-                    {
-                        v.Name,
-                        v.IsDutGay,
-                        Blocks = v.Blocks.Select(b => new
-                            {
-                                b.Name,
-                                Vach = SerializeSurfaceData(b.Vach),
-                                Tru = SerializeSurfaceData(b.Tru),
-                                DutGay = b.DutGay != null ? SerializeSurfaceData(b.DutGay) : null
-                            }).ToList()
-                    }).ToList(),
-                    Faults = project.Faults.Select(f => new
-                    {
-                        f.Name,
-                        Surface = SerializeSurfaceData(f.Surface)
-                    }).ToList(),
-                    Rocks = project.Rocks.Select(r => new
-                    {
-                        r.Name,
-                        Surface = SerializeSurfaceData(r.Surface)
-                    }).ToList(),
-                    Boreholes = project.Boreholes.Select(b => new
-                    {
-                        b.Name,
-                        b.ExcelFilePath,
-                        b.X,
-                        b.Y,
-                        b.Z,
-                        b.Intervals,
-                        b.Trajectory,
-                        ImportedBoreholes = b.ImportedBoreholes.Select(ib => new
-                        {
-                            ib.Name,
-                            ib.ExcelFilePath,
-                            ib.X,
-                            ib.Y,
-                            ib.Z,
-                            ib.Intervals,
-                            ib.Trajectory
-                        }).ToList()
-                    }).ToList(),
-                    BeMats = project.BeMats.Select(b => new
-                    {
-                        b.Name,
-                        Surface = SerializeSurfaceData(b.Surface)
-                    }).ToList(),
-                    MineTopologies2 = project.MineTopologies2.Select(t2 => new
-                    {
-                        t2.Name,
-                        TietDiens = t2.TietDiens.Select(td => SerializeGeoRef(td.Polyline, td.Name)).ToList(),
-                        DoanDuongLos = t2.DoanDuongLos.Select(d => new
-                        {
-                            d.Name,
-                            Polyline = d.Polyline != null ? SerializeGeoRef(d.Polyline) : null,
-                            d.TietDienName
-                        }).ToList()
-                    }).ToList()
-                };
-
-                string json = JsonConvert.SerializeObject(projectData, Formatting.Indented);
-                File.WriteAllText(GetProjectDataPath(), json);
-                
-                MessageBox.Show($"Đã lưu dự án tại:\n{GetProjectDataPath()}", "Lưu thành công", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string pointerPath = GetLastSavePointerPath();
+                if (!File.Exists(pointerPath)) return null;
+                string path = File.ReadAllText(pointerPath).Trim();
+                return string.IsNullOrEmpty(path) ? null : path;
             }
-            catch (Exception ex)
+            catch
             {
-                MessageBox.Show($"Lỗi khi lưu: {ex.Message}", "Lỗi", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return null;
             }
         }
 
-    public MiningProject LoadProjectData(bool silent = false)
-    {
-        try
+        private void SetLastSavePath(string path)
         {
-            string path = GetProjectDataPath();
-            if (!File.Exists(path))
+            try { File.WriteAllText(GetLastSavePointerPath(), path); }
+            catch { /* best effort — worst case, next launch just won't auto-reopen it */ }
+        }
+
+        /// <summary>
+        /// One-time migration for anyone upgrading from the old single always-overwritten
+        /// save file: if that legacy file exists and no save slot has been created yet,
+        /// copy (never move — never destroy the original) it into the Saves folder as the
+        /// first slot, so existing work shows up in the new save list instead of vanishing.
+        /// </summary>
+        public void MigrateLegacyProjectIfNeeded()
+        {
+            try
             {
-                if (!silent)
-                    MessageBox.Show("Chưa có dữ liệu dự án đã lưu.", "Thông báo", 
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return null;
+                if (GetLastSavePath() != null) return; // already on the new system
+
+                string legacyPath = GetLegacyProjectDataPath();
+                if (!File.Exists(legacyPath)) return;
+
+                string savesFolder = GetSavesFolder();
+                if (Directory.GetFiles(savesFolder, "*.json").Length > 0) return;
+
+                string destPath = Path.Combine(savesFolder, "Dữ liệu trước đó.json");
+                if (!File.Exists(destPath))
+                    File.Copy(legacyPath, destPath, overwrite: false);
+                SetLastSavePath(destPath);
             }
+            catch { /* best effort */ }
+        }
 
-                string json = File.ReadAllText(path);
-                dynamic projectData = JsonConvert.DeserializeObject<dynamic>(json);
+        public static string SanitizeSaveName(string name)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            string cleaned = new string((name ?? "").Where(c => !invalid.Contains(c)).ToArray()).Trim();
+            return string.IsNullOrEmpty(cleaned) ? "Dự án" : cleaned;
+        }
 
-                MiningProject project = new MiningProject();
-
-                // Reconstruct Vias
-                foreach (var viaData in projectData.Vias)
+        /// <summary>Lists every save slot in the Saves folder, most recently saved first.</summary>
+        public List<ProjectSaveSlot> ListSaves()
+        {
+            var result = new List<ProjectSaveSlot>();
+            foreach (var file in Directory.GetFiles(GetSavesFolder(), "*.json"))
+            {
+                result.Add(new ProjectSaveSlot
                 {
-                    ViaData via = new ViaData
-                    {
-                        Name = viaData.Name.ToString(),
-                        IsDutGay = viaData.IsDutGay != null && (bool)viaData.IsDutGay
-                    };
-                    
-                    foreach (var blockData in viaData.Blocks)
-                    {
-                        KhoiData khoi = new KhoiData
-                        {
-                            Name = blockData.Name.ToString(),
-                            Vach = DeserializeSurfaceData(blockData.Vach),
-                            Tru = DeserializeSurfaceData(blockData.Tru),
-                            DutGay = blockData.DutGay != null
-                                ? DeserializeSurfaceData(blockData.DutGay)
-                                : new SurfaceData { Type = "Đứt gãy", ParentName = blockData.Name.ToString() }
-                        };
-                        via.Blocks.Add(khoi);
-                    }
-                    project.Vias.Add(via);
+                    Name = Path.GetFileNameWithoutExtension(file),
+                    FilePath = file,
+                    SavedAt = File.GetLastWriteTime(file)
+                });
+            }
+            return result.OrderByDescending(s => s.SavedAt).ToList();
+        }
+
+        /// <summary>Writes a brand-new save slot named <paramref name="saveName"/> and returns its path.</summary>
+        public string SaveProjectAs(MiningProject project, string saveName)
+        {
+            string path = Path.Combine(GetSavesFolder(), SanitizeSaveName(saveName) + ".json");
+            File.WriteAllText(path, BuildProjectJson(project));
+            SetLastSavePath(path);
+            return path;
+        }
+
+        /// <summary>Re-writes an existing save slot in place — an RPG-style "overwrite save".</summary>
+        public void OverwriteSave(MiningProject project, string filePath)
+        {
+            File.WriteAllText(filePath, BuildProjectJson(project));
+            SetLastSavePath(filePath);
+        }
+
+        public void DeleteSave(string filePath)
+        {
+            if (File.Exists(filePath))
+                File.Delete(filePath);
+        }
+
+        /// <summary>Loads a project from an explicit save-slot path (or any project JSON file the user browsed to).</summary>
+        public MiningProject LoadProjectFromFile(string filePath, bool silent = false)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                {
+                    if (!silent)
+                        MessageBox.Show("Không tìm thấy file lưu này.", "Thông báo",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return null;
                 }
 
-                // Reconstruct Faults
-                foreach (var faultData in projectData.Faults)
-                {
-                    FaultData fault = new FaultData
-                    {
-                        Name = faultData.Name.ToString(),
-                        Surface = DeserializeSurfaceData(faultData.Surface)
-                    };
-                    project.Faults.Add(fault);
-                }
-
-                // Reconstruct Rocks
-                foreach (var rockData in projectData.Rocks)
-                {
-                    RockData rock = new RockData
-                    {
-                        Name = rockData.Name.ToString(),
-                        Surface = DeserializeSurfaceData(rockData.Surface)
-                    };
-                    project.Rocks.Add(rock);
-                }
-
-                // Reconstruct Boreholes
-                if (projectData.Boreholes != null)
-                {
-                    foreach (var boreholeData in projectData.Boreholes)
-                    {
-                        BoreholeData borehole = DeserializeBoreholeLeaf(boreholeData);
-
-                        if (boreholeData.ImportedBoreholes != null)
-                        {
-                            foreach (var importedData in boreholeData.ImportedBoreholes)
-                                borehole.ImportedBoreholes.Add(DeserializeBoreholeLeaf(importedData));
-                        }
-
-                        project.Boreholes.Add(borehole);
-                    }
-                }
-
-                // Reconstruct BeMats
-                if (projectData.BeMats != null)
-                {
-                    foreach (var beMatData in projectData.BeMats)
-                    {
-                        BeMatData beMat = new BeMatData
-                        {
-                            Name = beMatData.Name.ToString(),
-                            Surface = DeserializeSurfaceData(beMatData.Surface)
-                        };
-                        project.BeMats.Add(beMat);
-                    }
-                }
-
-                // Reconstruct MineTopologies2
-                if (projectData.MineTopologies2 != null)
-                {
-                    foreach (var t2Data in projectData.MineTopologies2)
-                    {
-                        var t2 = new MineTopologyLoai2Data { Name = t2Data.Name.ToString() };
-
-                        if (t2Data.TietDiens != null)
-                        {
-                            foreach (var tdItem in t2Data.TietDiens)
-                            {
-                                t2.TietDiens.Add(new TietDienData
-                                {
-                                    Name     = tdItem.TietDienName != null ? tdItem.TietDienName.ToString() : "",
-                                    Polyline = DeserializeGeoRef(tdItem)
-                                });
-                            }
-                        }
-
-                        if (t2Data.DoanDuongLos != null)
-                        {
-                            foreach (var dData in t2Data.DoanDuongLos)
-                            {
-                                t2.DoanDuongLos.Add(new DoanDuongLoData
-                                {
-                                    Name         = dData.Name.ToString(),
-                                    Polyline     = dData.Polyline != null ? DeserializeGeoRef(dData.Polyline) : null,
-                                    TietDienName = dData.TietDienName != null ? dData.TietDienName.ToString() : null
-                                });
-                            }
-                        }
-
-                        project.MineTopologies2.Add(t2);
-                    }
-                }
+                var project = ParseProjectJson(File.ReadAllText(filePath));
+                SetLastSavePath(filePath);
 
                 if (!silent)
-                    MessageBox.Show($"Đã tải dự án từ:\n{path}", "Tải thành công",
+                    MessageBox.Show($"Đã tải dự án từ:\n{filePath}", "Tải thành công",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 return project;
             }
-        catch (Exception ex)
-        {
-            if (!silent)
-                MessageBox.Show($"Lỗi khi tải: {ex.Message}", "Lỗi", 
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return null;
+            catch (Exception ex)
+            {
+                if (!silent)
+                    MessageBox.Show($"Lỗi khi tải: {ex.Message}", "Lỗi",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return null;
+            }
         }
+
+        private string BuildProjectJson(MiningProject project)
+        {
+            var projectData = new
+            {
+                SavedDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                Vias = project.Vias.Select(v => new
+                {
+                    v.Name,
+                    v.IsDutGay,
+                    Blocks = v.Blocks.Select(b => new
+                        {
+                            b.Name,
+                            Vach = SerializeSurfaceData(b.Vach),
+                            Tru = SerializeSurfaceData(b.Tru),
+                            DutGay = b.DutGay != null ? SerializeSurfaceData(b.DutGay) : null
+                        }).ToList()
+                }).ToList(),
+                Faults = project.Faults.Select(f => new
+                {
+                    f.Name,
+                    Surface = SerializeSurfaceData(f.Surface)
+                }).ToList(),
+                Rocks = project.Rocks.Select(r => new
+                {
+                    r.Name,
+                    Surface = SerializeSurfaceData(r.Surface)
+                }).ToList(),
+                Boreholes = project.Boreholes.Select(b => new
+                {
+                    b.Name,
+                    b.ExcelFilePath,
+                    b.X,
+                    b.Y,
+                    b.Z,
+                    b.Intervals,
+                    b.Trajectory,
+                    ImportedBoreholes = b.ImportedBoreholes.Select(ib => new
+                    {
+                        ib.Name,
+                        ib.ExcelFilePath,
+                        ib.X,
+                        ib.Y,
+                        ib.Z,
+                        ib.Intervals,
+                        ib.Trajectory
+                    }).ToList()
+                }).ToList(),
+                BeMats = project.BeMats.Select(b => new
+                {
+                    b.Name,
+                    Surface = SerializeSurfaceData(b.Surface)
+                }).ToList(),
+                MineTopologies2 = project.MineTopologies2.Select(t2 => new
+                {
+                    t2.Name,
+                    TietDiens = t2.TietDiens.Select(td => SerializeGeoRef(td.Polyline, td.Name)).ToList(),
+                    DoanDuongLos = t2.DoanDuongLos.Select(d => new
+                    {
+                        d.Name,
+                        Polyline = d.Polyline != null ? SerializeGeoRef(d.Polyline) : null,
+                        d.TietDienName,
+                        MinedDate = d.MinedDate.HasValue ? d.MinedDate.Value.ToString("yyyy-MM-dd") : null
+                    }).ToList()
+                }).ToList()
+            };
+
+            return JsonConvert.SerializeObject(projectData, Formatting.Indented);
+        }
+
+        private MiningProject ParseProjectJson(string json)
+        {
+            dynamic projectData = JsonConvert.DeserializeObject<dynamic>(json);
+
+            MiningProject project = new MiningProject();
+
+            // Reconstruct Vias
+            foreach (var viaData in projectData.Vias)
+            {
+                ViaData via = new ViaData
+                {
+                    Name = viaData.Name.ToString(),
+                    IsDutGay = viaData.IsDutGay != null && (bool)viaData.IsDutGay
+                };
+
+                foreach (var blockData in viaData.Blocks)
+                {
+                    KhoiData khoi = new KhoiData
+                    {
+                        Name = blockData.Name.ToString(),
+                        Vach = DeserializeSurfaceData(blockData.Vach),
+                        Tru = DeserializeSurfaceData(blockData.Tru),
+                        DutGay = blockData.DutGay != null
+                            ? DeserializeSurfaceData(blockData.DutGay)
+                            : new SurfaceData { Type = "Đứt gãy", ParentName = blockData.Name.ToString() }
+                    };
+                    via.Blocks.Add(khoi);
+                }
+                project.Vias.Add(via);
+            }
+
+            // Reconstruct Faults
+            foreach (var faultData in projectData.Faults)
+            {
+                FaultData fault = new FaultData
+                {
+                    Name = faultData.Name.ToString(),
+                    Surface = DeserializeSurfaceData(faultData.Surface)
+                };
+                project.Faults.Add(fault);
+            }
+
+            // Reconstruct Rocks
+            foreach (var rockData in projectData.Rocks)
+            {
+                RockData rock = new RockData
+                {
+                    Name = rockData.Name.ToString(),
+                    Surface = DeserializeSurfaceData(rockData.Surface)
+                };
+                project.Rocks.Add(rock);
+            }
+
+            // Reconstruct Boreholes
+            if (projectData.Boreholes != null)
+            {
+                foreach (var boreholeData in projectData.Boreholes)
+                {
+                    BoreholeData borehole = DeserializeBoreholeLeaf(boreholeData);
+
+                    if (boreholeData.ImportedBoreholes != null)
+                    {
+                        foreach (var importedData in boreholeData.ImportedBoreholes)
+                            borehole.ImportedBoreholes.Add(DeserializeBoreholeLeaf(importedData));
+                    }
+
+                    project.Boreholes.Add(borehole);
+                }
+            }
+
+            // Reconstruct BeMats
+            if (projectData.BeMats != null)
+            {
+                foreach (var beMatData in projectData.BeMats)
+                {
+                    BeMatData beMat = new BeMatData
+                    {
+                        Name = beMatData.Name.ToString(),
+                        Surface = DeserializeSurfaceData(beMatData.Surface)
+                    };
+                    project.BeMats.Add(beMat);
+                }
+            }
+
+            // Reconstruct MineTopologies2
+            if (projectData.MineTopologies2 != null)
+            {
+                foreach (var t2Data in projectData.MineTopologies2)
+                {
+                    var t2 = new MineTopologyLoai2Data { Name = t2Data.Name.ToString() };
+
+                    if (t2Data.TietDiens != null)
+                    {
+                        foreach (var tdItem in t2Data.TietDiens)
+                        {
+                            t2.TietDiens.Add(new TietDienData
+                            {
+                                Name     = tdItem.TietDienName != null ? tdItem.TietDienName.ToString() : "",
+                                Polyline = DeserializeGeoRef(tdItem)
+                            });
+                        }
+                    }
+
+                    if (t2Data.DoanDuongLos != null)
+                    {
+                        foreach (var dData in t2Data.DoanDuongLos)
+                        {
+                            DateTime? minedDate = null;
+                            string minedDateStr = dData.MinedDate != null ? dData.MinedDate.ToString() : null;
+                            if (!string.IsNullOrEmpty(minedDateStr) && DateTime.TryParse(minedDateStr, out DateTime parsedDate))
+                                minedDate = parsedDate;
+
+                            t2.DoanDuongLos.Add(new DoanDuongLoData
+                            {
+                                Name         = dData.Name.ToString(),
+                                Polyline     = dData.Polyline != null ? DeserializeGeoRef(dData.Polyline) : null,
+                                TietDienName = dData.TietDienName != null ? dData.TietDienName.ToString() : null,
+                                MinedDate    = minedDate
+                            });
+                        }
+                    }
+
+                    project.MineTopologies2.Add(t2);
+                }
+            }
+
+            return project;
         }
 
         /// <summary>
@@ -436,6 +559,12 @@ namespace MyMiningPlugin.Services
         // Tiết diện Library  (global, cross-project)
         // ---------------------------------------------------------------
 
+        private string GetTietDienLibraryPath()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return Path.Combine(appData, "MyMiningPlugin", "TietDienLibrary.json");
+        }
+
         public void SaveTietDienLibrary(List<TietDienData> library)
         {
             try
@@ -473,6 +602,52 @@ namespace MyMiningPlugin.Services
             {
                 System.Diagnostics.Debug.WriteLine($"LoadTietDienLibrary error: {ex.Message}");
             }
+            return result;
+        }
+
+        /// <summary>
+        /// Reads a Tiết diện JSON previously written by the library's "Xuất JSON" button
+        /// (a flattened-geometry export, not the roaming TietDienLibrary.json format) and
+        /// reconstructs it as reusable TietDienData entries. Each entry's shape is stored as
+        /// CachedVertices with no live drawing reference, so Đoạn đường lò can assign it even
+        /// in a project where the original polyline was never selected — see the
+        /// CachedVertices fallback in GeometryProcessingService.ProcessGeometryWithSmartZ.
+        /// </summary>
+        public List<TietDienData> LoadTietDienLibraryFromExportedJson(string filePath)
+        {
+            var result = new List<TietDienData>();
+            dynamic items = JsonConvert.DeserializeObject<dynamic>(File.ReadAllText(filePath));
+
+            foreach (var item in items)
+            {
+                string name = item.TietDienName != null ? item.TietDienName.ToString() : null;
+                if (string.IsNullOrEmpty(name)) continue;
+
+                var cachedVertices = new List<double[]>();
+                if (item.FlattenedVertices != null)
+                {
+                    foreach (var v in item.FlattenedVertices)
+                        cachedVertices.Add(new double[] { (double)v[0], (double)v[1], (double)v[2] });
+                }
+
+                result.Add(new TietDienData
+                {
+                    Name = name,
+                    Polyline = new GeometryReference
+                    {
+                        Handle        = item.Handle != null ? item.Handle.ToString() : "",
+                        Layer         = item.Layer != null ? item.Layer.ToString() : "",
+                        SourceDwgPath = "",
+                        SourceDwgName = "(từ JSON)",
+                        EntityType    = "LWPOLYLINE",
+                        VertexCount   = item.VertexCount != null ? (int)item.VertexCount : cachedVertices.Count,
+                        IsClosed      = item.IsClosed != null && (bool)item.IsClosed,
+                        CachedVertices = cachedVertices,
+                        CurrentObjectId = null
+                    }
+                });
+            }
+
             return result;
         }
     }
