@@ -10,7 +10,6 @@ namespace AutoCAD_NET_4_8_Framework
 {
     public class MainLoader
     {
-        private static UI_Events _myForm;
         [CommandMethod("OPENMINETERRA")]
         public void OpenMineTerra()
         {

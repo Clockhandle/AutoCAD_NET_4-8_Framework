@@ -21,7 +21,6 @@ namespace MyMiningPlugin.UI
         private Button btnCancel;
         private Button btnSelectAll;
         private Button btnDeselectAll;
-        private TextBox txtServerUrl;
         private Label lblMapStatus;
         private DateTimePicker dtpDate;
 
@@ -75,32 +74,24 @@ namespace MyMiningPlugin.UI
                 this.Controls.Add(dtpDate);
             }
 
-            // --- Single server URL (used for both upload and map listing) ---
-            this.Controls.Add(new Label { Text = "Server URL:", Location = new Point(20, 268 + dateOffset), AutoSize = true });
-            txtServerUrl = new TextBox { Location = new Point(20, 288 + dateOffset), Size = new Size(470, 25), Text = "http://mica.edu.vn:55320/" };
-            this.Controls.Add(txtServerUrl);
-
             // --- Map selector ---
-            this.Controls.Add(new Label { Text = "Chọn bản đồ trên server (hoặc nhập tên mới):", Location = new Point(20, 325 + dateOffset), AutoSize = true });
+            // Server URL used to be a field here the user retyped every time; it now
+            // comes from ServerConfig.xml (next to the plugin DLL) via ServerConfigService.
+            this.Controls.Add(new Label { Text = "Chọn bản đồ trên server (hoặc nhập tên mới):", Location = new Point(20, 268 + dateOffset), AutoSize = true });
 
             cmbMapName = new ComboBox
             {
-                Location = new Point(20, 345 + dateOffset),
+                Location = new Point(20, 288 + dateOffset),
                 Size = new Size(350, 25),
                 DropDownStyle = ComboBoxStyle.DropDown,
                 Text = !string.IsNullOrEmpty(defaultMapName) ? defaultMapName : $"{category}_Map"
             };
             this.Controls.Add(cmbMapName);
 
-            btnRefreshMaps = new Button { Text = "↻ Tải danh sách", Location = new Point(378, 344 + dateOffset), Size = new Size(112, 26) };
+            btnRefreshMaps = new Button { Text = "↻ Tải danh sách", Location = new Point(378, 287 + dateOffset), Size = new Size(112, 26) };
             btnRefreshMaps.Click += async (s, e) =>
             {
-                string mapsUrl = txtServerUrl.Text.Trim();
-                if (string.IsNullOrWhiteSpace(mapsUrl))
-                {
-                    MessageBox.Show("Vui lòng nhập Server URL trước.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+                string mapsUrl = ServerConfigService.GetServerUrl();
                 btnRefreshMaps.Enabled = false;
                 lblMapStatus.Text = "Đang tải...";
                 try
@@ -121,11 +112,11 @@ namespace MyMiningPlugin.UI
             };
             this.Controls.Add(btnRefreshMaps);
 
-            lblMapStatus = new Label { Location = new Point(20, 378 + dateOffset), AutoSize = true, ForeColor = Color.Gray, Text = "Nhấn ↻ để tải danh sách bản đồ từ server." };
+            lblMapStatus = new Label { Location = new Point(20, 321 + dateOffset), AutoSize = true, ForeColor = Color.Gray, Text = "Nhấn ↻ để tải danh sách bản đồ từ server." };
             this.Controls.Add(lblMapStatus);
 
             // --- Action buttons ---
-            btnOK = new Button { Text = "Gửi (Send)", Location = new Point(300, 453 + dateOffset), Size = new Size(90, 30), BackColor = Color.LightGreen };
+            btnOK = new Button { Text = "Gửi (Send)", Location = new Point(300, 396 + dateOffset), Size = new Size(90, 30), BackColor = Color.LightGreen };
             btnOK.Click += (s, e) =>
             {
                 SelectedItems = new List<string>();
@@ -135,22 +126,20 @@ namespace MyMiningPlugin.UI
                 { MessageBox.Show("Vui lòng chọn ít nhất một mục!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 if (string.IsNullOrWhiteSpace(cmbMapName.Text))
                 { MessageBox.Show("Vui lòng chọn hoặc nhập tên bản đồ!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (string.IsNullOrWhiteSpace(txtServerUrl.Text))
-                { MessageBox.Show("Vui lòng nhập Server URL!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
                 MapName      = cmbMapName.Text.Trim();
-                ServerUrl    = txtServerUrl.Text.Trim();
+                ServerUrl    = ServerConfigService.GetServerUrl();
                 SelectedDate = dtpDate?.Value;
                 this.DialogResult = DialogResult.OK;
                 this.Close();
             };
             this.Controls.Add(btnOK);
 
-            btnCancel = new Button { Text = "Hủy", Location = new Point(400, 453 + dateOffset), Size = new Size(90, 30) };
+            btnCancel = new Button { Text = "Hủy", Location = new Point(400, 396 + dateOffset), Size = new Size(90, 30) };
             btnCancel.Click += (s, e) => { this.DialogResult = DialogResult.Cancel; this.Close(); };
             this.Controls.Add(btnCancel);
 
-            this.Size = new Size(520, 530 + dateOffset);
+            this.Size = new Size(520, 473 + dateOffset);
         }
     }
 

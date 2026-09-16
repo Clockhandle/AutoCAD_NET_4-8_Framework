@@ -27,8 +27,6 @@ namespace AutoCAD_NET_4_8_Framework
         private PersistenceService _persistenceService;
         private ExportService _exportService;
 
-        private TextBox txtServerUrl;
-
         public MiningManagerDForm()
         {
             _selectionService = new AutoCADSelectionService();
@@ -67,22 +65,6 @@ namespace AutoCAD_NET_4_8_Framework
                 }
             }
             RebuildTreeView();
-
-            Label lblServerUrl = new Label
-            {
-                Text = "Server URL:",
-                Location = new Point(20, 405),
-                AutoSize = true
-            };
-            this.Controls.Add(lblServerUrl);
-
-            txtServerUrl = new TextBox
-            {
-                Location = new Point(20, 425),
-                Size = new Size(390, 25),
-                Text = "http://mica.edu.vn:55322/"
-            };
-            this.Controls.Add(txtServerUrl);
         }
 
         private void TreeView_AfterSelect(object sender, TreeViewEventArgs e)
