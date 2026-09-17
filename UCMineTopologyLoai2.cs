@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using MyMiningPlugin.Models;
@@ -198,7 +199,7 @@ namespace AutoCAD_NET_4_8_Framework
             };
             dgv.Columns.Add(colTietDien);
 
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colNgay", HeaderText = "Ngày khai thác (yyyy-MM-dd)", Width = 170 });
+            dgv.Columns.Add(new DataGridViewCalendarColumn { Name = "colNgay", HeaderText = "Ngày khai thác", Width = 170 });
             dgv.Columns.Add(new DataGridViewButtonColumn { Name = "colXoa", HeaderText = "", Text = "Xóa", UseColumnTextForButtonValue = true, Width = 60 });
 
             RefreshTietDienOptions(dgv);
@@ -235,27 +236,10 @@ namespace AutoCAD_NET_4_8_Framework
                 var doan = (DoanDuongLoData)dgv.Rows[e.RowIndex].Tag;
                 if (doan == null) return;
 
-                var cell = dgv.Rows[e.RowIndex].Cells[ColNgayKhaiThac];
-                string text = (cell.Value as string)?.Trim();
-                dgv.Rows[e.RowIndex].ErrorText = "";
-
-                if (string.IsNullOrEmpty(text))
-                {
-                    doan.MinedDate = null;
-                    cell.Value = "";
-                }
-                else if (DateTime.TryParse(text, out DateTime parsed))
-                {
-                    doan.MinedDate = parsed.Date;
-                    cell.Value = parsed.ToString("yyyy-MM-dd");
-                }
-                else
-                {
-                    // Invalid input — revert to the last known-good value instead of
-                    // silently accepting garbage into MinedDate.
-                    dgv.Rows[e.RowIndex].ErrorText = "Ngày không hợp lệ — đã khôi phục giá trị cũ.";
-                    cell.Value = doan.MinedDate.HasValue ? doan.MinedDate.Value.ToString("yyyy-MM-dd") : "";
-                }
+                // The cell edits through a DateTimePicker (see DataGridViewCalendarColumn
+                // below), so the value arriving here is already a valid DateTime? or null —
+                // no more hand-typed "yyyy-MM-dd" text to mis-parse or reject.
+                doan.MinedDate = dgv.Rows[e.RowIndex].Cells[ColNgayKhaiThac].Value as DateTime?;
             };
 
             return dgv;
@@ -332,7 +316,7 @@ namespace AutoCAD_NET_4_8_Framework
             bool knownTietDien = !string.IsNullOrEmpty(doan.TietDienName) && colTietDien.Items.Contains(doan.TietDienName);
             row.Cells[ColTietDien].Value = knownTietDien ? doan.TietDienName : PlaceholderTietDien;
 
-            row.Cells[ColNgayKhaiThac].Value = doan.MinedDate.HasValue ? doan.MinedDate.Value.ToString("yyyy-MM-dd") : "";
+            row.Cells[ColNgayKhaiThac].Value = doan.MinedDate;
         }
 
         // -----------------------------------------------------------------------
@@ -356,5 +340,125 @@ namespace AutoCAD_NET_4_8_Framework
                 ForeColor = fore,
                 UseVisualStyleBackColor = false
             };
+
+        // =========================================================================
+        // Ngày khai thác column — edits through a DateTimePicker (with a checkbox
+        // so the date can be cleared back to "not set") instead of free-typed text,
+        // so it's no longer possible to fat-finger a date into MinedDate.
+        //
+        // Like DataGridViewComboBoxColumn, DataGridView reuses ONE shared editing
+        // control for whichever cell is currently being edited — it does not create
+        // a DateTimePicker per row — so this doesn't reintroduce the per-row-control
+        // window-handle exhaustion problem the DataGridView switch (above) was for.
+        // =========================================================================
+        private class DataGridViewCalendarColumn : DataGridViewColumn
+        {
+            public DataGridViewCalendarColumn() : base(new DataGridViewCalendarCell()) { }
+
+            public override DataGridViewCell CellTemplate
+            {
+                get => base.CellTemplate;
+                set
+                {
+                    if (value != null && !(value is DataGridViewCalendarCell))
+                        throw new InvalidCastException("CellTemplate must be a DataGridViewCalendarCell");
+                    base.CellTemplate = value;
+                }
+            }
+        }
+
+        private class DataGridViewCalendarCell : DataGridViewTextBoxCell
+        {
+            public override Type EditType => typeof(DateTimePickerEditingControl);
+            public override Type ValueType => typeof(DateTime?);
+            public override object DefaultNewRowValue => null;
+
+            public override void InitializeEditingControl(int rowIndex, object initialFormattedValue, DataGridViewCellStyle dataGridViewCellStyle)
+            {
+                base.InitializeEditingControl(rowIndex, initialFormattedValue, dataGridViewCellStyle);
+                var ctl = (DateTimePickerEditingControl)DataGridView.EditingControl;
+                var current = Value as DateTime?;
+                ctl.Checked = current.HasValue;
+                ctl.Value = current ?? DateTime.Today;
+            }
+
+            protected override object GetFormattedValue(object value, int rowIndex, ref DataGridViewCellStyle cellStyle,
+                TypeConverter valueTypeConverter, TypeConverter formattedValueTypeConverter, DataGridViewDataErrorContexts context)
+            {
+                var d = value as DateTime?;
+                return d.HasValue ? d.Value.ToString("yyyy-MM-dd") : "(chưa có ngày)";
+            }
+
+            public override object ParseFormattedValue(object formattedValue, DataGridViewCellStyle cellStyle,
+                TypeConverter formattedValueTypeConverter, TypeConverter valueTypeConverter)
+            {
+                if (formattedValue is string s && DateTime.TryParse(s, out DateTime parsed))
+                    return parsed.Date;
+                return null;
+            }
+        }
+
+        private class DateTimePickerEditingControl : DateTimePicker, IDataGridViewEditingControl
+        {
+            private DataGridView _dgv;
+            private bool _valueChanged;
+
+            public DateTimePickerEditingControl()
+            {
+                Format = DateTimePickerFormat.Custom;
+                CustomFormat = "yyyy-MM-dd";
+                ShowCheckBox = true; // unchecked = no mined date yet, matches nullable MinedDate
+            }
+
+            public object EditingControlFormattedValue
+            {
+                get => Checked ? Value.Date.ToString("yyyy-MM-dd") : "";
+                set
+                {
+                    if (value is string s && !string.IsNullOrEmpty(s) && DateTime.TryParse(s, out DateTime parsed))
+                    {
+                        Checked = true;
+                        Value = parsed;
+                    }
+                    else
+                    {
+                        Checked = false;
+                    }
+                }
+            }
+
+            public object GetEditingControlFormattedValue(DataGridViewDataErrorContexts context) => EditingControlFormattedValue;
+
+            public void ApplyCellStyleToEditingControl(DataGridViewCellStyle dataGridViewCellStyle) => Font = dataGridViewCellStyle.Font;
+
+            public int EditingControlRowIndex { get; set; }
+
+            public bool EditingControlWantsInputKey(Keys keyData, bool dataGridViewWantsInputKey) => false;
+
+            public void PrepareEditingControlForEdit(bool selectAll) { }
+
+            public bool RepositionEditingControlOnValueChange => false;
+
+            public DataGridView EditingControlDataGridView { get => _dgv; set => _dgv = value; }
+
+            public bool EditingControlValueChanged { get => _valueChanged; set => _valueChanged = value; }
+
+            public Cursor EditingPanelCursor => Cursor;
+
+            protected override void OnValueChanged(EventArgs eventargs)
+            {
+                _valueChanged = true;
+                _dgv?.NotifyCurrentCellDirty(true);
+                base.OnValueChanged(eventargs);
+            }
+
+            protected override void OnCloseUp(EventArgs eventargs)
+            {
+                // Toggling the checkbox doesn't raise ValueChanged on its own.
+                _valueChanged = true;
+                _dgv?.NotifyCurrentCellDirty(true);
+                base.OnCloseUp(eventargs);
+            }
+        }
     }
 }

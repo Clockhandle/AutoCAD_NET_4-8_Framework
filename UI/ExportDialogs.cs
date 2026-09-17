@@ -58,9 +58,12 @@ namespace MyMiningPlugin.UI
             btnDeselectAll.Click += (s, e) => { for (int i = 0; i < chkItems.Items.Count; i++) chkItems.SetItemChecked(i, false); };
             this.Controls.Add(btnDeselectAll);
 
-            // --- Date input (Địa hình lò and Địa hình lò Loại 2 only) ---
+            // --- Date input (Địa hình lò only) ---
+            // Địa hình lò Loại 2 doesn't need this — each Đoạn đường lò already carries
+            // its own mined date, set where the line itself is chosen (UCMineTopologyLoai2),
+            // so asking for one more date here would just be a second, disconnected value.
             int dateOffset = 0;
-            if (category == "Địa hình lò" || category == "Địa hình lò Loại 2")
+            if (category == "Địa hình lò")
             {
                 dateOffset = 55;
                 this.Controls.Add(new Label { Text = "Ngày dữ liệu:", Location = new Point(20, 263), AutoSize = true });

@@ -11,7 +11,7 @@ namespace MyMiningPlugin.Services
     // deploys the plugin) and the send dialog just uses it.
     public static class ServerConfigService
     {
-        private const string DefaultUrl = "https://mica.edu.vn/mineterra3d:55320/";
+        private const string DefaultUrl = "https://www.mica.edu.vn:55320/mineterra3d/";
         private static string _cachedUrl;
 
         public static string GetServerUrl()
