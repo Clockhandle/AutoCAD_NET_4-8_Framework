@@ -548,6 +548,13 @@ namespace MyMiningPlugin.Services
                 g.Layer,
                 g.EntityType,
                 g.VertexCount,
+                g.IsClosed,
+                // Without this, a reloaded reference has no live ObjectId (CurrentObjectId
+                // is [JsonIgnore]) and no vertices either — it can only export again if the
+                // exact same drawing happens to be open with a matching Handle. Tiết diện in
+                // particular is meant to be reusable across projects/drawings, so it needs
+                // its own coordinates saved here, not just a pointer back to a CAD entity.
+                CachedVertices = g.CachedVertices?.Select(v => new[] { v[0], v[1], v[2] }).ToList(),
                 TietDienName = tietDienName   // only populated for TietDien entries
             };
         }
@@ -555,7 +562,7 @@ namespace MyMiningPlugin.Services
         private GeometryReference DeserializeGeoRef(dynamic d)
         {
             if (d == null) return null;
-            return new GeometryReference
+            var geoRef = new GeometryReference
             {
                 Handle        = d.Handle        != null ? d.Handle.ToString()        : "",
                 SourceDwgPath = d.SourceDwgPath != null ? d.SourceDwgPath.ToString() : "",
@@ -563,8 +570,19 @@ namespace MyMiningPlugin.Services
                 Layer         = d.Layer         != null ? d.Layer.ToString()         : "",
                 EntityType    = d.EntityType    != null ? d.EntityType.ToString()    : "",
                 VertexCount   = d.VertexCount   != null ? (int)d.VertexCount         : 0,
+                IsClosed      = d.IsClosed      != null && (bool)d.IsClosed,
                 CurrentObjectId = null
             };
+
+            if (d.CachedVertices != null)
+            {
+                var verts = new List<double[]>();
+                foreach (var v in d.CachedVertices)
+                    verts.Add(new double[] { (double)v[0], (double)v[1], (double)v[2] });
+                geoRef.CachedVertices = verts;
+            }
+
+            return geoRef;
         }
 
         // ---------------------------------------------------------------
