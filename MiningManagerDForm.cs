@@ -963,7 +963,7 @@ namespace AutoCAD_NET_4_8_Framework
         {
             using (var ofd = new OpenFileDialog
             {
-                Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+                Filter = "Project save files (*.t3d)|*.t3d|JSON files (*.json)|*.json|All files (*.*)|*.*",
                 Title = "Tải dự án từ file",
                 InitialDirectory = _persistenceService.GetSavesFolder()
             })

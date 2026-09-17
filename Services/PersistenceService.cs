@@ -25,10 +25,14 @@ namespace MyMiningPlugin.Services
     public class PersistenceService
     {
         // ---------------------------------------------------------------
-        // Save slots — every "Lưu dự án mới" creates one named *.json file here
+        // Save slots — every "Lưu dự án mới" creates one named *.t3d file here
         // instead of the single always-overwritten file this used to be. LastSave.txt
         // remembers which slot to silently reopen the next time the plugin starts.
+        // Content is still plain JSON — .t3d is just the file's public extension so it
+        // reads as a project save rather than a generic data file.
         // ---------------------------------------------------------------
+
+        private const string SaveExtension = ".t3d";
 
         private string GetLegacyProjectDataPath()
         {
@@ -96,9 +100,9 @@ namespace MyMiningPlugin.Services
                 if (!File.Exists(legacyPath)) return;
 
                 string savesFolder = GetSavesFolder();
-                if (Directory.GetFiles(savesFolder, "*.json").Length > 0) return;
+                if (GetSaveFiles(savesFolder).Any()) return;
 
-                string destPath = Path.Combine(savesFolder, "Dữ liệu trước đó.json");
+                string destPath = Path.Combine(savesFolder, "Dữ liệu trước đó" + SaveExtension);
                 if (!File.Exists(destPath))
                     File.Copy(legacyPath, destPath, overwrite: false);
                 SetLastSavePath(destPath);
@@ -113,11 +117,19 @@ namespace MyMiningPlugin.Services
             return string.IsNullOrEmpty(cleaned) ? "Dự án" : cleaned;
         }
 
+        // *.json is still scanned so save slots created before the switch to .t3d
+        // keep showing up in the list instead of silently vanishing.
+        private static IEnumerable<string> GetSaveFiles(string savesFolder)
+        {
+            return Directory.GetFiles(savesFolder, "*" + SaveExtension)
+                .Concat(Directory.GetFiles(savesFolder, "*.json"));
+        }
+
         /// <summary>Lists every save slot in the Saves folder, most recently saved first.</summary>
         public List<ProjectSaveSlot> ListSaves()
         {
             var result = new List<ProjectSaveSlot>();
-            foreach (var file in Directory.GetFiles(GetSavesFolder(), "*.json"))
+            foreach (var file in GetSaveFiles(GetSavesFolder()))
             {
                 result.Add(new ProjectSaveSlot
                 {
@@ -132,7 +144,7 @@ namespace MyMiningPlugin.Services
         /// <summary>Writes a brand-new save slot named <paramref name="saveName"/> and returns its path.</summary>
         public string SaveProjectAs(MiningProject project, string saveName)
         {
-            string path = Path.Combine(GetSavesFolder(), SanitizeSaveName(saveName) + ".json");
+            string path = Path.Combine(GetSavesFolder(), SanitizeSaveName(saveName) + SaveExtension);
             File.WriteAllText(path, BuildProjectJson(project));
             SetLastSavePath(path);
             return path;
