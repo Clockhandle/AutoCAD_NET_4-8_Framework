@@ -785,12 +785,17 @@ namespace AutoCAD_NET_4_8_Framework
 
         /// <summary>
         /// Loads a previously-exported Tiết diện JSON (from the library's "Xuất JSON" button)
-        /// and merges any newly-named entries into the shared _tietDienLibrary, so Đoạn đường
-        /// lò can assign them the same way as any other library entry — the dropdown in
-        /// <paramref name="ucTopo2"/> sources straight from _tietDienLibrary already.
-        /// Entries whose name already exists in the library are left untouched (a live,
-        /// drawing-resolvable reference is not overwritten by an imported one).
+        /// as the shared _tietDienLibrary, so Đoạn đường lò can assign entries from it the same
+        /// way as any other library entry — the dropdown in <paramref name="ucTopo2"/> sources
+        /// straight from _tietDienLibrary already.
         /// </summary>
+        // Loading a library JSON REPLACES the current (persisted, roaming) Tiết diện
+        // library rather than merging into it — this is the only "unload" the library
+        // has: before this, entries from a previously loaded file could only be removed
+        // one row at a time from the library node, with no way to swap libraries wholesale.
+        // A Đoạn đường lò whose TietDienName isn't in the new set just shows as
+        // "(chưa chọn)" until reassigned — see UCMineTopologyLoai2.UpdateRowContent —
+        // it does NOT lose its own polyline or mined date.
         private void LoadTietDienLibraryJsonInto(UCMineTopologyLoai2 ucTopo2)
         {
             using (var ofd = new OpenFileDialog { Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*", Title = "Tải thư viện Tiết diện (JSON)" })
@@ -808,19 +813,27 @@ namespace AutoCAD_NET_4_8_Framework
                     return;
                 }
 
-                int added = 0, skipped = 0;
-                foreach (var td in loaded)
+                if (_tietDienLibrary.Count > 0)
                 {
-                    if (_tietDienLibrary.Any(t => t.Name == td.Name)) { skipped++; continue; }
-                    _tietDienLibrary.Add(td);
-                    added++;
+                    var confirm = MessageBox.Show(
+                        $"Thao tác này sẽ THAY THẾ toàn bộ thư viện Tiết diện hiện tại ({_tietDienLibrary.Count} mục) " +
+                        $"bằng {loaded.Count} mục từ file đã chọn.\n\n" +
+                        "Đoạn đường lò nào đang dùng một tiết diện không còn trong thư viện mới sẽ hiển thị " +
+                        "\"(chưa chọn)\" cho đến khi được gán lại — đường và ngày khai thác của chúng không bị mất.\n\n" +
+                        "Bạn có chắc chắn muốn thay thế?",
+                        "Thay thế thư viện", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (confirm != DialogResult.Yes) return;
                 }
+
+                // Mutate in place (not _tietDienLibrary = loaded) so the TietDienLibrary
+                // node, which is handed this same List<> reference, stays in sync too.
+                _tietDienLibrary.Clear();
+                _tietDienLibrary.AddRange(loaded);
                 _persistenceService.SaveTietDienLibrary(_tietDienLibrary);
                 ucTopo2.RefreshTietDienOptions();
 
-                string msg = $"Đã thêm {added} tiết diện vào thư viện.";
-                if (skipped > 0) msg += $"\n({skipped} mục trùng tên với tiết diện đã có, bị bỏ qua.)";
-                MessageBox.Show(msg, "Tải thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show($"Đã tải thư viện: {loaded.Count} tiết diện.", "Tải thành công",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
