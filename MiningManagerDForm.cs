@@ -1194,7 +1194,7 @@ namespace AutoCAD_NET_4_8_Framework
         {
             try
             {
-                await _exportService.SendToServer(category, selectedNames, mapName, serverUrl, _project, this, date);
+                await _exportService.SendToServer(category, selectedNames, mapName, serverUrl, _project, this, date, _tietDienLibrary);
             }
             catch (Exception ex)
             {
@@ -1206,7 +1206,7 @@ namespace AutoCAD_NET_4_8_Framework
         {
             try
             {
-                await _exportService.ExportToFile(category, selectedNames, mapName, _project);
+                await _exportService.ExportToFile(category, selectedNames, mapName, _project, _tietDienLibrary);
             }
             catch (Exception ex)
             {

@@ -29,11 +29,12 @@ namespace MyMiningPlugin.Services
         /// Generate combined JSON payload for multiple items
         /// </summary>
         public async Task<string> GenerateCombinedJsonPayload(
-            string category, 
-            List<string> selectedNames, 
+            string category,
+            List<string> selectedNames,
             string mapName,
             MiningProject project,
-            DateTime? date = null)
+            DateTime? date = null,
+            List<TietDienData> tietDienLibrary = null)
         {
             var flattenedItems = new List<object>();
 
@@ -65,7 +66,7 @@ namespace MyMiningPlugin.Services
                     break;
 
                 case "Địa hình lò Loại 2":
-                    await ProcessMineTopologies2(project.MineTopologies2, selectedNames, mapName, flattenedItems, date);
+                    await ProcessMineTopologies2(project.MineTopologies2, selectedNames, mapName, flattenedItems, tietDienLibrary, date);
                     break;
 
                 case "Giới hạn":
@@ -79,18 +80,19 @@ namespace MyMiningPlugin.Services
         /// <summary>
         /// Export JSON to file
         /// </summary>
-        public async Task ExportToFile(string category, List<string> selectedNames, string mapName, MiningProject project)
+        public async Task ExportToFile(string category, List<string> selectedNames, string mapName, MiningProject project,
+            List<TietDienData> tietDienLibrary = null)
         {
             try
             {
                 // CRITICAL: Resolve all geometry references BEFORE async processing
-                ResolveAllGeometryReferences(category, selectedNames, project);
-                
+                ResolveAllGeometryReferences(category, selectedNames, project, tietDienLibrary);
+
                 // Add diagnostic info before generating JSON
                 var (totalGeometryCount, resolvedGeometryCount, debugDetails) =
-                    BuildDiagnosticInfo(category, selectedNames, project);
+                    BuildDiagnosticInfo(category, selectedNames, project, tietDienLibrary);
 
-                string json = await GenerateCombinedJsonPayload(category, selectedNames, mapName, project);
+                string json = await GenerateCombinedJsonPayload(category, selectedNames, mapName, project, tietDienLibrary: tietDienLibrary);
 
                 // null means quality checks blocked the export (errors found, markers placed)
                 if (json == null) return;
@@ -131,8 +133,8 @@ namespace MyMiningPlugin.Services
                 if (saveDialog.ShowDialog() == DialogResult.OK)
                 {
                     System.IO.File.WriteAllText(saveDialog.FileName, json);
-                    
-                    int lineCount = CountTotalLines(category, selectedNames, project);
+
+                    int lineCount = CountTotalLines(category, selectedNames, project, tietDienLibrary);
 
                     MessageBox.Show($"Export thành công!\n\nFile: {saveDialog.FileName}\n{category}: {selectedNames.Count}\nTổng số lines: {lineCount}", 
                         "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -261,7 +263,8 @@ namespace MyMiningPlugin.Services
             string serverUrl,
             MiningProject project,
             Form parentForm,
-            DateTime? date = null)
+            DateTime? date = null,
+            List<TietDienData> tietDienLibrary = null)
         {
             string baseUrl = serverUrl.TrimEnd('/');
             string url = $"{baseUrl}/api/cad-upload";
@@ -269,9 +272,9 @@ namespace MyMiningPlugin.Services
             try
             {
                 // CRITICAL: Resolve all geometry references BEFORE async processing
-                ResolveAllGeometryReferences(category, selectedNames, project);
+                ResolveAllGeometryReferences(category, selectedNames, project, tietDienLibrary);
 
-                string json = await GenerateCombinedJsonPayload(category, selectedNames, mapName, project, date);
+                string json = await GenerateCombinedJsonPayload(category, selectedNames, mapName, project, date, tietDienLibrary);
 
                 // null means quality checks blocked the export (errors found, markers placed)
                 if (json == null) return;
@@ -282,7 +285,7 @@ namespace MyMiningPlugin.Services
                 if (json == "[]" || json == "[\r\n]" || json == "[\n]")
                 {
                     var (totalGeometryCount, resolvedGeometryCount, debugDetails) =
-                        BuildDiagnosticInfo(category, selectedNames, project);
+                        BuildDiagnosticInfo(category, selectedNames, project, tietDienLibrary);
 
                     string debugMsg = $"Không có dữ liệu để gửi lên server!\n\n";
                     debugMsg += $"Debug Info:\n";
@@ -580,7 +583,7 @@ namespace MyMiningPlugin.Services
         /// SendToServer had no such check at all — see BUG 2 in the export audit).
         /// </summary>
         private (int totalGeometryCount, int resolvedGeometryCount, string debugDetails) BuildDiagnosticInfo(
-            string category, List<string> selectedNames, MiningProject project)
+            string category, List<string> selectedNames, MiningProject project, List<TietDienData> tietDienLibrary = null)
         {
             int totalGeometryCount = 0;
             int resolvedGeometryCount = 0;
@@ -712,8 +715,9 @@ namespace MyMiningPlugin.Services
                         var t2 = project.MineTopologies2.FirstOrDefault(t => t.Name == name);
                         if (t2 != null)
                         {
-                            int tietDienCount = t2.TietDiens.Count;
-                            int tietDienResolved = t2.TietDiens.Count(td => td.Polyline != null &&
+                            var usedTietDiens = ResolveUsedTietDiens(t2, tietDienLibrary);
+                            int tietDienCount = usedTietDiens.Count;
+                            int tietDienResolved = usedTietDiens.Count(td => td.Polyline != null &&
                                 td.Polyline.CurrentObjectId.HasValue && !td.Polyline.CurrentObjectId.Value.IsNull);
                             int doanCount = t2.DoanDuongLos.Count;
                             int doanResolved = t2.DoanDuongLos.Count(d => d.Polyline != null &&
@@ -751,7 +755,8 @@ namespace MyMiningPlugin.Services
             return (totalGeometryCount, resolvedGeometryCount, debugDetails);
         }
 
-        private int CountTotalLines(string category, List<string> selectedNames, MiningProject project)
+        private int CountTotalLines(string category, List<string> selectedNames, MiningProject project,
+            List<TietDienData> tietDienLibrary = null)
         {
             int lineCount = 0;
 
@@ -812,7 +817,7 @@ namespace MyMiningPlugin.Services
                     foreach (var name in selectedNames)
                     {
                         var t2 = project.MineTopologies2.FirstOrDefault(t => t.Name == name);
-                        if (t2 != null) lineCount += t2.TietDiens.Count + t2.DoanDuongLos.Count;
+                        if (t2 != null) lineCount += ResolveUsedTietDiens(t2, tietDienLibrary).Count + t2.DoanDuongLos.Count;
                     }
                     break;
                 case "Giới hạn":
@@ -832,7 +837,8 @@ namespace MyMiningPlugin.Services
         /// Resolve all geometry references for selected items BEFORE async processing
         /// This ensures ObjectIds are resolved in the correct AutoCAD context
         /// </summary>
-        private void ResolveAllGeometryReferences(string category, List<string> selectedNames, MiningProject project)
+        private void ResolveAllGeometryReferences(string category, List<string> selectedNames, MiningProject project,
+            List<TietDienData> tietDienLibrary = null)
         {
             switch (category)
             {
@@ -908,7 +914,7 @@ namespace MyMiningPlugin.Services
                         var t2 = project.MineTopologies2.FirstOrDefault(t => t.Name == name);
                         if (t2 != null)
                         {
-                            foreach (var td in t2.TietDiens)
+                            foreach (var td in ResolveUsedTietDiens(t2, tietDienLibrary))
                                 _geometryProcessor._selectionService.ResolveReference(td.Polyline);
                             foreach (var d in t2.DoanDuongLos)
                                 _geometryProcessor._selectionService.ResolveReference(d.Polyline);
@@ -1039,9 +1045,30 @@ namespace MyMiningPlugin.Services
             };
         }
 
+        // t2.TietDiens is a legacy, per-topology snapshot that nothing writes to anymore —
+        // Tiết diện is picked per Đoạn đường lò from the one shared, roaming library (see
+        // UCMineTopologyLoai2 / MiningManagerDForm._tietDienLibrary), referenced only by
+        // name via DoanDuongLoData.TietDienName. So the Tiết diện actually used by a
+        // topology is whichever library entries its Đoạn đường lò currently reference —
+        // NOT t2.TietDiens, which stays empty for anything assigned since that refactor.
+        private static List<TietDienData> ResolveUsedTietDiens(MineTopologyLoai2Data t2, List<TietDienData> tietDienLibrary)
+        {
+            if (tietDienLibrary == null || tietDienLibrary.Count == 0) return new List<TietDienData>();
+
+            var usedNames = t2.DoanDuongLos
+                .Select(d => d.TietDienName)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Distinct();
+
+            return usedNames
+                .Select(n => tietDienLibrary.FirstOrDefault(td => td.Name == n))
+                .Where(td => td != null)
+                .ToList();
+        }
+
         private async Task ProcessMineTopologies2(
             List<MineTopologyLoai2Data> topologies2, List<string> selectedNames,
-            string mapName, List<object> flattenedItems, DateTime? date = null)
+            string mapName, List<object> flattenedItems, List<TietDienData> tietDienLibrary = null, DateTime? date = null)
         {
             string dateStr = date.HasValue ? date.Value.ToString("yyyy-MM-dd") : null;
 
@@ -1050,8 +1077,9 @@ namespace MyMiningPlugin.Services
                 var t2 = topologies2.FirstOrDefault(t => t.Name == name);
                 if (t2 == null) continue;
 
-                // Export each TietDien polyline
-                foreach (var td in t2.TietDiens)
+                // Export each TietDien polyline actually referenced by this topology's Đoạn
+                // đường lò, resolved from the shared library (see ResolveUsedTietDiens above).
+                foreach (var td in ResolveUsedTietDiens(t2, tietDienLibrary))
                 {
                     if (td.Polyline == null) continue;
                     var surface = new MyMiningPlugin.Models.SurfaceData
