@@ -170,7 +170,7 @@ namespace MyMiningPlugin.Services
                     LayerTableRecord ltr = tr.GetObject(lt[layerName], OpenMode.ForWrite)
                         as LayerTableRecord;
                     try { ltr.Erase(); }
-                    catch { /* layer may still have refs — leave it */ }
+                    catch { /* layer may still have refs ï¿½ leave it */ }
                 }
 
                 tr.Commit();
@@ -178,10 +178,6 @@ namespace MyMiningPlugin.Services
 
             return $"Da xoa {removed} marker chat luong khoi ban ve.";
         }
-
-        // -------------------------------------------------------------------------
-        // Helpers
-        // -------------------------------------------------------------------------
 
         private static void EnsureLayer(Database db, Transaction tr,
             string name, short colorIndex)

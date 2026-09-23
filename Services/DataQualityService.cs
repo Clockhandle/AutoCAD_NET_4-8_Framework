@@ -6,10 +6,6 @@ using MyMiningPlugin.Models;
 
 namespace MyMiningPlugin.Services
 {
-    // -------------------------------------------------------------------------
-    // Result types
-    // -------------------------------------------------------------------------
-
     public enum QualityCheckSeverity { Note, Warning, Error }
 
     public class QualityIssue
@@ -25,10 +21,6 @@ namespace MyMiningPlugin.Services
         public object   Extra    { get; set; }   // check-specific payload
     }
 
-    // -------------------------------------------------------------------------
-    // Service
-    // -------------------------------------------------------------------------
-
     public class DataQualityService
     {
         // Below this, two lines are considered parallel (sin of the angle between them).
@@ -39,10 +31,6 @@ namespace MyMiningPlugin.Services
         private const double ParamEpsilon = 1e-9;
         // Minimum segment length (metres) to bother testing — drops degenerate/zero-length edges.
         private const double MinSegmentLength = 1e-9;
-
-        // -------------------------------------------------------------------------
-        // Public entry point — detect XY crossings between polylines (top-view only)
-        // -------------------------------------------------------------------------
 
         /// <summary>
         /// Detects where polyline edges cross each other in the XY plane (Z ignored —
@@ -118,10 +106,6 @@ namespace MyMiningPlugin.Services
 
             return issues;
         }
-
-        // -------------------------------------------------------------------------
-        // Geometry: 2D segment intersection (Z ignored)
-        // -------------------------------------------------------------------------
 
         /// <summary>
         /// Tests whether segments (p1-p2) and (p3-p4) intersect in the XY plane.

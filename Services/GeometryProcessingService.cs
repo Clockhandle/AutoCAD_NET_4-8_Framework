@@ -128,10 +128,7 @@ namespace MyMiningPlugin.Services
             return Task.FromResult((raw, issues));
         }
 
-        // -------------------------------------------------------------------------
         // Private: entity extraction (no clipping)
-        // -------------------------------------------------------------------------
-
         private List<CADObjectData> ExtractRawGeometry(SurfaceData surface)
         {
             List<CADObjectData> result = new List<CADObjectData>();
@@ -343,10 +340,7 @@ namespace MyMiningPlugin.Services
                     $"WeldEndpoints: merged {weldedClusters} near-coincident junction cluster(s) within {tolerance} units.");
         }
 
-        // -------------------------------------------------------------------------
         // Private: Bề mặt boundary clip (mutates the list in-place)
-        // -------------------------------------------------------------------------
-
         private void ApplyBeMatClipping(SurfaceData surface, List<CADObjectData> result)
         {
             if (surface.Type != "Bề mặt" || !result.Any(r => r.IsBoundary)) return;
@@ -562,10 +556,7 @@ namespace MyMiningPlugin.Services
             return rawPoints;
         }
 
-        // -------------------------------------------------------------------------
         // 2-D clipping helpers (no external library required)
-        // -------------------------------------------------------------------------
-
         private struct Point2D
         {
             public double X, Y;

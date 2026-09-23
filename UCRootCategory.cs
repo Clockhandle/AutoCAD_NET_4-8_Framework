@@ -1,5 +1,4 @@
 ﻿using System;
-using System;
 using System.Windows.Forms;
 
 namespace AutoCAD_NET_4_8_Framework
@@ -20,7 +19,7 @@ namespace AutoCAD_NET_4_8_Framework
         }
 
         // Lưu dự án / Tải dự án used to live here, duplicated across every root
-        // category. They now live once, centrally, under the "Lưu trữ dữ liệu"
+        // category. They now live once, centrally, under the "Quản lý dữ liệu"
         // node at the bottom of the tree — see UCSaveManager.
         public void LoadData(
             string title,

@@ -196,10 +196,10 @@ namespace MyMiningPlugin.Services
 
                 SaveFileDialog saveDialog = new SaveFileDialog
                 {
-                    Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
-                    DefaultExt = "json",
-                    FileName = $"{fileName.Replace(" ", "_")}.json",
-                    Title = "Export Tiết diện JSON"
+                    Filter = "T3D files (*.t3d)|*.t3d|JSON files (*.json)|*.json|All files (*.*)|*.*",
+                    DefaultExt = "t3d",
+                    FileName = $"{fileName.Replace(" ", "_")}.t3d",
+                    Title = "Export Tiết diện"
                 };
 
                 if (saveDialog.ShowDialog() == DialogResult.OK)
@@ -378,18 +378,6 @@ namespace MyMiningPlugin.Services
                             }
                         }
 
-                        // Process DutGay (Fault within block) - only if it has geometry
-                        if (khoi.DutGay != null && khoi.DutGay.SelectedGeometry.Count > 0)
-                        {
-                            var dutGayGeometryList = await _geometryProcessor.ProcessGeometryWithSmartZ(khoi.DutGay);
-                            foreach (var geo in dutGayGeometryList)
-                            {
-                                // Đứt gãy IS the breakline for a Via block — it's the line that
-                                // splits the block/volume into two downstream in the render app.
-                                geo.IsBreakline = true;
-                                flattenedItems.Add(CreateGeometryItem(geo, mapName, via.Name, khoi.Name, "Đứt gãy", via.IsDutGay));
-                            }
-                        }
                     }
                 }
             }
@@ -770,8 +758,7 @@ namespace MyMiningPlugin.Services
                         {
                             lineCount += via.Blocks.Sum(b =>
                                 b.Vach.SelectedGeometry.Count + b.Vach.BoundaryGeometry.Count +
-                                b.Tru.SelectedGeometry.Count + b.Tru.BoundaryGeometry.Count +
-                                b.DutGay.SelectedGeometry.Count);
+                                b.Tru.SelectedGeometry.Count + b.Tru.BoundaryGeometry.Count);
                         }
                     }
                     break;
@@ -852,8 +839,6 @@ namespace MyMiningPlugin.Services
                             {
                                 _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(khoi.Vach);
                                 _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(khoi.Tru);
-                                if (khoi.DutGay != null)
-                                    _geometryProcessor._selectionService.ResolveCurrentDrawingReferences(khoi.DutGay);
                             }
                         }
                     }

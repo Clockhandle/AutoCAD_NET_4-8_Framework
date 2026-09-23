@@ -455,16 +455,7 @@ namespace AutoCAD_NET_4_8_Framework
             else if (nodeTag == "RootSaveManager")
             {
                 var ucSave = new UCSaveManager { Dock = DockStyle.Fill };
-                ucSave.LoadData(
-                    savesFolderPath: _persistenceService.GetSavesFolder(),
-                    onSaveNew: (name) => SaveProjectAsNew(name, ucSave),
-                    getSaves: () => _persistenceService.ListSaves(),
-                    onLoadSlot: (slot) => LoadFromSlot(slot),
-                    onOverwriteSlot: (slot) => OverwriteSlot(slot, ucSave),
-                    onDeleteSlot: (slot) => DeleteSlot(slot, ucSave),
-                    onBrowseLoad: () => BrowseAndLoadProject(),
-                    onOpenFolder: () => OpenSavesFolder()
-                );
+                WireUpSaveManager(ucSave);
                 rightPanel.Controls.Add(ucSave);
             }
         }
@@ -562,8 +553,7 @@ namespace AutoCAD_NET_4_8_Framework
             {
                 Name = blockName,
                 Vach = new SurfaceData { Type = "Vách", ParentName = $"{via.Name} - {blockName}" },
-                Tru = new SurfaceData { Type = "Trụ", ParentName = $"{via.Name} - {blockName}" },
-                DutGay = new SurfaceData { Type = "Đứt gãy", ParentName = $"{via.Name} - {blockName}" }
+                Tru = new SurfaceData { Type = "Trụ", ParentName = $"{via.Name} - {blockName}" }
             };
             via.Blocks.Add(newBlock);
 
@@ -576,12 +566,8 @@ namespace AutoCAD_NET_4_8_Framework
             TreeNode truNode = new TreeNode("Trụ");
             truNode.Tag = newBlock.Tru;
 
-            TreeNode dutGayNode = new TreeNode("Đứt gãy");
-            dutGayNode.Tag = newBlock.DutGay;
-
             blockNode.Nodes.Add(vachNode);
             blockNode.Nodes.Add(truNode);
-            blockNode.Nodes.Add(dutGayNode);
             viaNode.Nodes.Add(blockNode);
             viaNode.Expand();
         }
@@ -798,7 +784,7 @@ namespace AutoCAD_NET_4_8_Framework
         // it does NOT lose its own polyline or mined date.
         private void LoadTietDienLibraryJsonInto(UCMineTopologyLoai2 ucTopo2)
         {
-            using (var ofd = new OpenFileDialog { Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*", Title = "Tải thư viện Tiết diện (JSON)" })
+            using (var ofd = new OpenFileDialog { Filter = "T3D files (*.t3d)|*.t3d|JSON files (*.json)|*.json|All files (*.*)|*.*", Title = "Tải thư viện Tiết diện" })
             {
                 if (ofd.ShowDialog() != DialogResult.OK) return;
 
@@ -891,9 +877,101 @@ namespace AutoCAD_NET_4_8_Framework
             ghNode.Expand();
         }
 
-        // ---------------------------------------------------------------
-        // Save manager  ("Lưu trữ dữ liệu" node — see UCSaveManager)
-        // ---------------------------------------------------------------
+        // Save manager ("Quản lý dữ liệu" node — see UCSaveManager)
+        private void WireUpSaveManager(UCSaveManager ucSave)
+        {
+            ucSave.LoadData(
+                savesFolderPath: _persistenceService.GetSavesFolder(),
+                onSaveNew: (name) => SaveProjectAsNew(name, ucSave),
+                getSaves: () => _persistenceService.ListSaves(),
+                onLoadSlot: (slot) => LoadFromSlot(slot),
+                onOverwriteSlot: (slot) => OverwriteSlot(slot, ucSave),
+                onDeleteSlot: (slot) => DeleteSlot(slot, ucSave),
+                onBrowseLoad: () => BrowseAndLoadProject(),
+                onOpenFolder: () => OpenSavesFolder(),
+                onMassSend: () => ShowMassSendDialog(),
+                onChangeFolder: () => ChangeSavesFolder(ucSave)
+            );
+        }
+
+        // Lets the user redirect future saves ("+ Lưu dự án mới") at a folder of their
+        // choosing — e.g. a synced/shared drive — instead of the fixed AppData location.
+        // Existing save files are never moved automatically; if there are any in the old
+        // folder, the user is asked whether to COPY (not move) them into the new one first,
+        // the same "never destroy the original" rule MigrateLegacyProjectIfNeeded follows.
+        private void ChangeSavesFolder(UCSaveManager ucSave)
+        {
+            string currentFolder = _persistenceService.GetSavesFolder();
+
+            using (var fbd = new FolderBrowserDialog
+            {
+                Description = "Chọn thư mục để lưu các bản lưu dự án",
+                SelectedPath = System.IO.Directory.Exists(currentFolder) ? currentFolder : string.Empty,
+                ShowNewFolderButton = true
+            })
+            {
+                if (fbd.ShowDialog() != DialogResult.OK) return;
+
+                string newFolder = fbd.SelectedPath;
+                if (string.Equals(
+                        System.IO.Path.GetFullPath(newFolder).TrimEnd('\\'),
+                        System.IO.Path.GetFullPath(currentFolder).TrimEnd('\\'),
+                        StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                var existingFiles = System.IO.Directory.Exists(currentFolder)
+                    ? System.IO.Directory.GetFiles(currentFolder, "*.t3d")
+                        .Concat(System.IO.Directory.GetFiles(currentFolder, "*.json")).ToList()
+                    : new List<string>();
+
+                if (existingFiles.Count > 0)
+                {
+                    var confirm = MessageBox.Show(
+                        $"Sao chép {existingFiles.Count} bản lưu hiện tại từ:\n{currentFolder}\n\n" +
+                        $"sang thư mục mới:\n{newFolder}?\n\n" +
+                        "Bản gốc trong thư mục cũ sẽ được giữ nguyên, không bị xóa hay di chuyển.",
+                        "Sao chép bản lưu sang thư mục mới", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                    if (confirm == DialogResult.Yes)
+                    {
+                        int copied = 0;
+                        foreach (var file in existingFiles)
+                        {
+                            string dest = System.IO.Path.Combine(newFolder, System.IO.Path.GetFileName(file));
+                            try
+                            {
+                                if (!System.IO.File.Exists(dest))
+                                {
+                                    System.IO.File.Copy(file, dest);
+                                    copied++;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show($"Lỗi khi sao chép {System.IO.Path.GetFileName(file)}: {ex.Message}",
+                                    "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
+                        MessageBox.Show($"Đã sao chép {copied}/{existingFiles.Count} bản lưu.", "Hoàn tất",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+
+                try
+                {
+                    _persistenceService.SetSavesFolder(newFolder);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Lỗi khi đổi thư mục lưu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                WireUpSaveManager(ucSave);
+                MessageBox.Show($"Đã đổi thư mục lưu sang:\n{newFolder}", "Thành công",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
 
         private void SaveProjectAsNew(string saveName, UCSaveManager ucSave)
         {
@@ -1202,6 +1280,65 @@ namespace AutoCAD_NET_4_8_Framework
             }
         }
 
+        // Mass send — "Gửi dữ liệu mới lên server" in the Quản lý dữ liệu node.
+        // Cross-category counterpart to ShowSendMultipleDialog: one dialog covering
+        // every big branch in the tree instead of one category at a time.
+        private void ShowMassSendDialog()
+        {
+            var itemsByCategory = new Dictionary<string, List<string>>
+            {
+                ["Vỉa"] = GetItemsByCategory("Vỉa"),
+                ["Đứt gãy"] = GetItemsByCategory("Đứt gãy"),
+                ["Nham thạch"] = GetItemsByCategory("Nham thạch"),
+                ["Lỗ khoan"] = GetItemsByCategory("Lỗ khoan"),
+                ["Bề mặt"] = GetItemsByCategory("Bề mặt"),
+                ["Địa hình lò"] = GetItemsByCategory("Địa hình lò"),
+                ["Địa hình lò Loại 2"] = GetItemsByCategory("Địa hình lò Loại 2"),
+                ["Giới hạn"] = GetItemsByCategory("Giới hạn"),
+            };
+
+            if (itemsByCategory.Values.All(v => v.Count == 0))
+            {
+                MessageBox.Show("Chưa có dữ liệu nào trong dự án!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // "New" = in the current project but not in the active save slot's saved
+            // content (see PersistenceService.GetSavedEntityNames). No active slot yet
+            // (project never saved) → nothing has been saved, so everything is new.
+            string activeSlot = _persistenceService.GetLastSavePath();
+            var savedNames = _persistenceService.GetSavedEntityNames(activeSlot);
+
+            var newItemsByCategory = new Dictionary<string, HashSet<string>>();
+            foreach (var kvp in itemsByCategory)
+            {
+                var saved = savedNames.TryGetValue(kvp.Key, out var s) ? s : new HashSet<string>();
+                newItemsByCategory[kvp.Key] = new HashSet<string>(kvp.Value.Where(name => !saved.Contains(name)));
+            }
+
+            var dialog = new MassSendDialog(itemsByCategory, newItemsByCategory, GetCurrentDrawingName());
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                MassSendToServer(dialog.SelectedByCategory, dialog.MapName, dialog.ServerUrl, dialog.SelectedDate);
+            }
+        }
+
+        private async void MassSendToServer(Dictionary<string, List<string>> selectedByCategory, string mapName, string serverUrl, DateTime? date)
+        {
+            try
+            {
+                // Reuses the existing per-category send path once per selected branch —
+                // each still reports its own success/failure, same as sending them
+                // individually would, just without reopening the dialog each time.
+                foreach (var kvp in selectedByCategory)
+                    await _exportService.SendToServer(kvp.Key, kvp.Value, mapName, serverUrl, _project, this, date, _tietDienLibrary);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi gửi dữ liệu: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private async void ExportMultipleToFile(string category, List<string> selectedNames, string mapName)
         {
             try
@@ -1266,12 +1403,8 @@ namespace AutoCAD_NET_4_8_Framework
                     TreeNode truNode = new TreeNode("Trụ");
                     truNode.Tag = khoi.Tru;
 
-                    TreeNode dutGayNode = new TreeNode("Đứt gãy");
-                    dutGayNode.Tag = khoi.DutGay ?? new SurfaceData { Type = "Đứt gãy", ParentName = khoi.Name };
-
                     blockNode.Nodes.Add(vachNode);
                     blockNode.Nodes.Add(truNode);
-                    blockNode.Nodes.Add(dutGayNode);
                     viaNode.Nodes.Add(blockNode);
                 }
             }
@@ -1333,7 +1466,7 @@ namespace AutoCAD_NET_4_8_Framework
             // Centralized, cross-category section at the bottom of the tree — save
             // system today, future home for whole-project bulk operations (mass
             // export etc.) that don't belong to any single root category above.
-            TreeNode rootSaveManager = new TreeNode("Lưu trữ dữ liệu");
+            TreeNode rootSaveManager = new TreeNode("Quản lý dữ liệu");
             rootSaveManager.Tag = "RootSaveManager";
             treeView.Nodes.Add(rootSaveManager);
 

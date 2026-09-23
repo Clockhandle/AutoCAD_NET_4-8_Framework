@@ -14,7 +14,6 @@ namespace AutoCAD_NET_4_8_Framework
         public Dictionary<string, List<string>> Faults { get; set; } = new Dictionary<string, List<string>>();
     }
 
-    // --- Manager Class for Saving/Loading State ---
     public static class AutoCADObjectStateManager
     {
         private const string DICT_NAME = "AutoCADObject_Data";
@@ -55,7 +54,6 @@ namespace AutoCAD_NET_4_8_Framework
                 Xrecord myXRecord = new Xrecord();
                 myXRecord.Data = new ResultBuffer(new TypedValue((int)DxfCode.Text, json));
 
-                // Save or overwrite the Xrecord in the dictionary
                 if (myDict.Contains(KEY_NAME))
                 {
                     myDict.Remove(KEY_NAME);
@@ -65,7 +63,6 @@ namespace AutoCAD_NET_4_8_Framework
                 tr.Commit();
             }
         }
-        // -----------------------------------------
 
         public static AutoCADObjectData LoadState(Document doc)
         {
@@ -81,7 +78,6 @@ namespace AutoCAD_NET_4_8_Framework
 
                 Xrecord myXRecord = (Xrecord)tr.GetObject(myDict.GetAt(KEY_NAME), OpenMode.ForRead);
 
-                // Read the JSON string
                 TypedValue[] data = myXRecord.Data.AsArray();
                 if (data.Length > 0 && data[0].TypeCode == (int)DxfCode.Text)
                 {
@@ -92,7 +88,6 @@ namespace AutoCAD_NET_4_8_Framework
             return null;
         }
 
-        // --- Helper methods ---
         private static Dictionary<string, List<string>> ConvertToHandles(Dictionary<string, HashSet<ObjectId>> groups)
         {
             var result = new Dictionary<string, List<string>>();
@@ -108,7 +103,6 @@ namespace AutoCAD_NET_4_8_Framework
             return result;
         }
 
-        // Convert ProjectState back to Live ObjectIds
         public static void ReconstructDictionaries(
             Database db,
             AutoCADObjectData state,

@@ -50,15 +50,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="accoremgd">
-      <HintPath>E:\AutoCAD\AutoCAD 2022\accoremgd.dll</HintPath>
+      <HintPath>$(AutoCADDir)\accoremgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="acdbmgd">
-      <HintPath>E:\AutoCAD\AutoCAD 2022\acdbmgd.dll</HintPath>
+      <HintPath>$(AutoCADDir)\acdbmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="acmgd">
-      <HintPath>E:\AutoCAD\AutoCAD 2022\acmgd.dll</HintPath>
+      <HintPath>$(AutoCADDir)\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ExcelDataReader, Version=3.8.0.0, Culture=neutral, PublicKeyToken=93517dbe6a4012fa, processorArchitecture=MSIL">
@@ -130,11 +130,20 @@
     <Compile Include="UCMineTopologyLoai2.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="UCMineTopologyLoai2.Designer.cs">
+      <DependentUpon>UCMineTopologyLoai2.cs</DependentUpon>
+    </Compile>
     <Compile Include="UCTietDienLibrary.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="UCTietDienLibrary.Designer.cs">
+      <DependentUpon>UCTietDienLibrary.cs</DependentUpon>
+    </Compile>
     <Compile Include="UCSaveManager.cs">
       <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UCSaveManager.Designer.cs">
+      <DependentUpon>UCSaveManager.cs</DependentUpon>
     </Compile>
     <Compile Include="UCRootCategory.cs">
       <SubType>UserControl</SubType>
@@ -168,11 +177,29 @@
     <Compile Include="UCVia.Designer.cs">
       <DependentUpon>UCVia.cs</DependentUpon>
     </Compile>
-    <Compile Include="UI\ExportDialogs.cs">
+    <Compile Include="UI\SendMultipleDataDialog.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UI\SendMultipleDataDialog.Designer.cs">
+      <DependentUpon>SendMultipleDataDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UI\MassSendDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UI\MassSendDialog.Designer.cs">
+      <DependentUpon>MassSendDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UI\ExportMultipleDataDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UI\ExportMultipleDataDialog.Designer.cs">
+      <DependentUpon>ExportMultipleDataDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="UI\RenameDialog.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UI\RenameDialog.Designer.cs">
+      <DependentUpon>RenameDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
@@ -194,8 +221,32 @@
     <EmbeddedResource Include="UCKhoi.resx">
       <DependentUpon>UCKhoi.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="UCGioiHanKhoi.resx">
+      <DependentUpon>UCGioiHanKhoi.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="UCRootCategory.resx">
       <DependentUpon>UCRootCategory.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCMineTopologyLoai2.resx">
+      <DependentUpon>UCMineTopologyLoai2.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCTietDienLibrary.resx">
+      <DependentUpon>UCTietDienLibrary.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UCSaveManager.resx">
+      <DependentUpon>UCSaveManager.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UI\SendMultipleDataDialog.resx">
+      <DependentUpon>SendMultipleDataDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UI\MassSendDialog.resx">
+      <DependentUpon>MassSendDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UI\ExportMultipleDataDialog.resx">
+      <DependentUpon>ExportMultipleDataDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UI\RenameDialog.resx">
+      <DependentUpon>RenameDialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UCSurface.resx">
       <DependentUpon>UCSurface.cs</DependentUpon>

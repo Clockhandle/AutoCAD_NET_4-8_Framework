@@ -5,7 +5,6 @@ using System.Collections.Generic;
 
 namespace MyMiningPlugin.Models
 {
-    // --- DATA STRUCTURES ---
     public class ViaData
     {
         public string Name { get; set; }
@@ -22,7 +21,6 @@ namespace MyMiningPlugin.Models
         public string Name { get; set; }
         public SurfaceData Vach { get; set; }
         public SurfaceData Tru { get; set; }
-        public SurfaceData DutGay { get; set; }
     }
 
     public class SurfaceData
@@ -41,9 +39,9 @@ namespace MyMiningPlugin.Models
         public string Handle { get; set; }           // "1A4F" (unique ID)
         public string SourceDwgPath { get; set; }    // "C:\\Projects\\vach.dwg"
         public string SourceDwgName { get; set; }    // "vach.dwg" (for display)
-        public string Layer { get; set; }            // Layer name
+        public string Layer { get; set; }
         public string EntityType { get; set; }       // "LWPOLYLINE", "LINE"
-        public int VertexCount { get; set; }         // Number of vertices
+        public int VertexCount { get; set; }
 
         // Cached vertex data — populated at selection time so the polyline can be
         // exported even when the source drawing is not currently open.
@@ -118,28 +116,32 @@ namespace MyMiningPlugin.Models
         public List<GeometryReference> Bien { get; set; } = new List<GeometryReference>();
     }
 
-    // --- Tiết diện (cross-section shape, stored in a global library) ---
+    // Tiết diện — a cross-section shape, stored in a global library.
     public class TietDienData
     {
         public string Name { get; set; }
-        public GeometryReference Polyline { get; set; }   // single persistent polyline
+        public GeometryReference Polyline { get; set; }
     }
 
-    // --- One segment of a Loại 2 mine tunnel ---
+    // One segment of a Loại 2 mine tunnel.
     public class DoanDuongLoData
     {
         public string Name { get; set; }
-        public GeometryReference Polyline { get; set; }   // single polyline for this segment
+        public GeometryReference Polyline { get; set; }
         public string TietDienName { get; set; }          // references TietDienData.Name
         public DateTime? MinedDate { get; set; }          // date this segment was mined (for export)
     }
 
-    // --- Địa hình lò Loại 2 ---
     public class MineTopologyLoai2Data
     {
         public string Name { get; set; }
-        // Named cross-section shapes — persisted globally, loaded per map
+
+        // Legacy, per-topology snapshot — nothing writes to this anymore. Tiết diện is
+        // now a shared global library (see UCTietDienLibrary / MiningManagerDForm's
+        // _tietDienLibrary); DoanDuongLoData.TietDienName references it by name instead.
+        // Kept only so older save files that still carry this field still deserialize.
         public List<TietDienData> TietDiens { get; set; } = new List<TietDienData>();
+
         public List<DoanDuongLoData> DoanDuongLos { get; set; } = new List<DoanDuongLoData>();
     }
 
